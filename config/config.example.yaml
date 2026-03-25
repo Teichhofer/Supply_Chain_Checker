@@ -1,0 +1,12 @@
+paths:
+  input_dir: data/input
+  output_dir: data/output
+  state_dir: data/state
+  logs_dir: logs
+
+processing:
+  use_ocr_fallback: true
+
+llm:
+  provider: openai
+  model: gpt-4.1-mini
