@@ -19,7 +19,9 @@ def test_build_parser_supports_extract_and_assess() -> None:
 
 def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "extract", "--config", "config/config.yaml"])
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", "config/config.yaml"]
+    )
 
     exit_code = cli.main()
 
