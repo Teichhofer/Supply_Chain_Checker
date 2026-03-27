@@ -111,7 +111,11 @@ def test_write_assessment_results_csv_keeps_skipped_products_and_skip_reason(tmp
         skip_reason="UNCONFIRMED_EXTRACTION",
     )
 
-    csv_path = write_assessment_results_csv(output_dir=tmp_path, run_context=context, results=[result])
+    csv_path = write_assessment_results_csv(
+        output_dir=tmp_path,
+        run_context=context,
+        results=[result],
+    )
     with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
         rows = list(csv.DictReader(csv_file))
 
