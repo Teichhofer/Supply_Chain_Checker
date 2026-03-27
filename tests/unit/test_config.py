@@ -138,11 +138,7 @@ def test_load_config_rejects_blank_required_string(tmp_path) -> None:
 def test_load_config_rejects_non_boolean_ocr_flag(tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "llm:\n"
-        "  provider: openai\n"
-        "  model: gpt-4.1-mini\n"
-        "parameters:\n"
-        "  use_ocr_fallback: 1\n",
+        "llm:\n  provider: openai\n  model: gpt-4.1-mini\nparameters:\n  use_ocr_fallback: 1\n",
         encoding="utf-8",
     )
 
@@ -153,10 +149,7 @@ def test_load_config_rejects_non_boolean_ocr_flag(tmp_path) -> None:
 def test_load_config_rejects_non_integer_timeout(tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "llm:\n"
-        "  provider: openai\n"
-        "  model: gpt-4.1-mini\n"
-        "  timeout_seconds: '30'\n",
+        "llm:\n  provider: openai\n  model: gpt-4.1-mini\n  timeout_seconds: '30'\n",
         encoding="utf-8",
     )
 
@@ -167,10 +160,7 @@ def test_load_config_rejects_non_integer_timeout(tmp_path) -> None:
 def test_load_config_rejects_integer_below_minimum(tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "llm:\n"
-        "  provider: openai\n"
-        "  model: gpt-4.1-mini\n"
-        "  max_retries: -1\n",
+        "llm:\n  provider: openai\n  model: gpt-4.1-mini\n  max_retries: -1\n",
         encoding="utf-8",
     )
 
@@ -181,10 +171,7 @@ def test_load_config_rejects_integer_below_minimum(tmp_path) -> None:
 def test_load_config_rejects_non_numeric_temperature(tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "llm:\n"
-        "  provider: openai\n"
-        "  model: gpt-4.1-mini\n"
-        "  temperature: false\n",
+        "llm:\n  provider: openai\n  model: gpt-4.1-mini\n  temperature: false\n",
         encoding="utf-8",
     )
 
