@@ -210,3 +210,18 @@ def test_load_config_rejects_unknown_status_corruption_strategy(tmp_path) -> Non
 
     with pytest.raises(ConfigurationError, match="parameters.on_corrupt_status_file"):
         load_config(config_file)
+
+
+@pytest.mark.parametrize("temperature", ["nan", "inf", "-inf"])
+def test_load_config_rejects_non_finite_temperature(tmp_path, temperature: str) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "llm:\n"
+        "  provider: openai\n"
+        "  model: gpt-4.1-mini\n"
+        f"  temperature: {temperature}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigurationError, match="llm.temperature"):
+        load_config(config_file)

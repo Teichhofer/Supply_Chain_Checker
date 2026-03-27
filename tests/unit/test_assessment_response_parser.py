@@ -42,3 +42,15 @@ def test_parse_assessment_response_rejects_overlong_reason() -> None:
         parse_assessment_response(
             response_text=f'{{"risikostufe": 3, "preisänderung_prozent": 1.5, "begründung": "{reason}"}}'
         )
+
+
+@pytest.mark.parametrize("price_change", ['"NaN"', '"Infinity"', '"-Infinity"'])
+def test_parse_assessment_response_rejects_non_finite_price_change(price_change: str) -> None:
+    with pytest.raises(ParsingError, match="must be finite"):
+        parse_assessment_response(
+            response_text=(
+                '{"risikostufe": 3, '
+                f'"preisänderung_prozent": {price_change}, '
+                '"begründung": "ok"}'
+            )
+        )
