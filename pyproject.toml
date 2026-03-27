@@ -58,6 +58,8 @@ ignore_missing_imports = true
 check_untyped_defs = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=supply_chain_checker --cov-report=term-missing --cov-report=xml --cov-report=html"
+# Keep default pytest execution independent from optional plugins like pytest-cov.
+# Coverage flags can still be provided in CI or locally via PYTEST_ADDOPTS.
+addopts = "-ra"
 testpaths = ["tests"]
 pythonpath = ["src"]
