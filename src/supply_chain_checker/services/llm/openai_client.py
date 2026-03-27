@@ -1,4 +1,4 @@
-"""OpenAI client implementation for the extraction gateway."""
+"""OpenAI client implementations for extraction and assessment gateways."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable
 
 from supply_chain_checker.services.llm.base import (
+    AssessmentLlmGateway,
     ExtractionLlmGateway,
     LlmClientError,
     LlmRequestContext,
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIExtractionClient(ExtractionLlmGateway):
-    """Thin adapter that hides provider-specific invocation details."""
+    """Thin adapter that hides provider-specific extraction invocation details."""
 
     def __init__(self, invoker: Callable[[str], str]) -> None:
         self._invoker = invoker
@@ -47,6 +48,47 @@ class OpenAIExtractionClient(ExtractionLlmGateway):
             "llm.extraction.succeeded",
             extra={
                 "event": "llm.extraction.succeeded",
+                "run_id": context.run_id,
+                "command": context.command,
+                "response_length": len(response),
+            },
+        )
+        return response
+
+
+class OpenAIAssessmentClient(AssessmentLlmGateway):
+    """Thin adapter that hides provider-specific assessment invocation details."""
+
+    def __init__(self, invoker: Callable[[str], str]) -> None:
+        self._invoker = invoker
+
+    def assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
+        logger.info(
+            "llm.assessment.requested",
+            extra={
+                "event": "llm.assessment.requested",
+                "run_id": context.run_id,
+                "command": context.command,
+            },
+        )
+        try:
+            response = self._invoker(prompt)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "llm.assessment.failed",
+                extra={
+                    "event": "llm.assessment.failed",
+                    "run_id": context.run_id,
+                    "command": context.command,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            raise LlmClientError("OpenAI assessment request failed.") from exc
+
+        logger.info(
+            "llm.assessment.succeeded",
+            extra={
+                "event": "llm.assessment.succeeded",
                 "run_id": context.run_id,
                 "command": context.command,
                 "response_length": len(response),
