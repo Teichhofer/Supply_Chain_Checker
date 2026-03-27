@@ -58,6 +58,7 @@ def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: 
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
     )
+
     def _raise_runtime_error(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError
 
