@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml  # type: ignore[import-untyped]
 
@@ -62,7 +62,7 @@ class ParametersConfig:
     use_ocr_fallback: bool
     max_products_per_document: int
     max_assessment_reason_words: int
-    on_corrupt_status_file: str
+    on_corrupt_status_file: Literal["abort", "fallback_empty"]
 
 
 @dataclass(frozen=True)
@@ -152,11 +152,15 @@ def load_config(config_path: str | Path) -> AppConfig:
         "parameters.max_assessment_reason_words",
         minimum=1,
     )
-    on_corrupt_status_file = _string(
+    on_corrupt_status_file_raw = _string(
         parameters_section.get("on_corrupt_status_file", "abort"),
         "parameters.on_corrupt_status_file",
     ).lower()
-    if on_corrupt_status_file not in {"abort", "fallback_empty"}:
+    if on_corrupt_status_file_raw == "abort":
+        on_corrupt_status_file: Literal["abort", "fallback_empty"] = "abort"
+    elif on_corrupt_status_file_raw == "fallback_empty":
+        on_corrupt_status_file = "fallback_empty"
+    else:
         raise ConfigurationError(
             "Field 'parameters.on_corrupt_status_file' must be one of: abort, fallback_empty."
         )
