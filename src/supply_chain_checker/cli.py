@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+import uuid
 from pathlib import Path
 
+from supply_chain_checker.config import load_config
+from supply_chain_checker.logging_setup import setup_logging
 from supply_chain_checker.scaffold import ensure_repository_layout
 
 logger = logging.getLogger(__name__)
@@ -28,20 +31,46 @@ def main() -> int:
     """Run CLI and return an exit code."""
 
     ensure_repository_layout(base_dir=Path.cwd())
-    logger.info("run.started", extra={"event": "run.started"})
 
     parser = _build_parser()
     args = parser.parse_args()
 
-    if args.command in {"extract", "assess"}:
+    config = load_config(args.config)
+    run_id = uuid.uuid4().hex[:12]
+    log_file_path = setup_logging(
+        logs_dir=config.paths.logs_dir,
+        level=config.logging.level,
+        run_id=run_id,
+        file_name=config.logging.file_name,
+    )
+
+    logger.info(
+        "run.started",
+        extra={"event": "run.started", "command": args.command, "run_id": run_id},
+    )
+
+    try:
+        if args.command in {"extract", "assess"}:
+            logger.info(
+                "command.received",
+                extra={"event": "command.received", "command": args.command, "run_id": run_id},
+            )
+            print(
+                f"Supply Chain Checker scaffold is ready. "
+                f"Command='{args.command}', config='{args.config}', run_id='{run_id}'."
+            )
+    finally:
         logger.info(
-            "command.received",
-            extra={"event": "command.received", "command": args.command},
+            "run.finished",
+            extra={"event": "run.finished", "command": args.command, "run_id": run_id},
         )
-        print(
-            f"Supply Chain Checker scaffold is ready. "
-            f"Command='{args.command}', config='{args.config}'."
+        logger.info(
+            "logging.file",
+            extra={
+                "event": "logging.file",
+                "run_id": run_id,
+                "log_file_path": str(log_file_path),
+            },
         )
 
-    logger.info("run.finished", extra={"event": "run.finished"})
     return 0
