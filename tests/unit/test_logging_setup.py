@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from supply_chain_checker.logging_setup import setup_logging
 
@@ -18,6 +19,7 @@ def test_setup_logging_writes_unified_format_with_run_id(tmp_path) -> None:
     assert "supply_chain_checker.tests" in content
     assert "run_id=run-123" in content
     assert "run.started" in content
+    assert re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \| INFO \|", content)
 
 
 def test_setup_logging_respects_warning_level(tmp_path) -> None:

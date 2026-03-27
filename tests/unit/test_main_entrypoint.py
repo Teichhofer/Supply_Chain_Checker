@@ -8,7 +8,13 @@ from runpy import run_module
 def test_module_main_executes(monkeypatch, capsys, tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "paths:\n  logs_dir: logs\nlogging:\n  level: INFO\n",
+        "paths:\n"
+        "  logs_dir: logs\n"
+        "logging:\n"
+        "  level: INFO\n"
+        "llm:\n"
+        "  provider: openai\n"
+        "  model: gpt-4.1-mini\n",
         encoding="utf-8",
     )
 
