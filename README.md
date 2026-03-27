@@ -161,3 +161,11 @@ Mindestens diese Befehle werden unterstützt:
 python -m supply_chain_checker extract --config config/config.yaml
 python -m supply_chain_checker assess --config config/config.yaml
 ```
+
+---
+
+## Konkreter Umsetzungsplan
+
+Ein detaillierter, task-basierter Entwicklungsplan für V1 liegt unter:
+
+- `docs/UMSETZUNGSPLAN_V1.md`
