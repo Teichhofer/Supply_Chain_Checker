@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,17 @@ def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, ca
     assert "scaffold is ready" in stdout
     assert "run_id='" in stdout
 
+    run_id_match = re.search(r"run_id='([a-f0-9]{12})'", stdout)
+    assert run_id_match is not None
+    run_id = run_id_match.group(1)
+
+    output_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    assert len(output_files) == 1
+
+    artifact_content = output_files[0].read_text(encoding="utf-8")
+    assert "run_id" in artifact_content
+    assert run_id in artifact_content
+
 
 def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
@@ -73,3 +85,27 @@ def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: 
     log_content = (tmp_path / "logs" / "app.log").read_text(encoding="utf-8")
     assert "run.started" in log_content
     assert "run.finished" in log_content
+
+
+def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+    assert cli.main() == 0
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "assess", "--config", str(config_file)]
+    )
+    assert cli.main() == 0
+
+    extract_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    assess_files = list((tmp_path / "data" / "output").glob("assessment_*.csv"))
+
+    assert len(extract_files) == 1
+    assert len(assess_files) == 1
+    assert extract_files[0].name != assess_files[0].name

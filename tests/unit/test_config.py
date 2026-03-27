@@ -101,10 +101,7 @@ def test_load_config_rejects_non_mapping_sections(tmp_path) -> None:
 def test_load_config_rejects_invalid_numeric_ranges(tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "llm:\n"
-        "  provider: openai\n"
-        "  model: gpt-4.1-mini\n"
-        "  temperature: 4\n",
+        "llm:\n  provider: openai\n  model: gpt-4.1-mini\n  temperature: 4\n",
         encoding="utf-8",
     )
 

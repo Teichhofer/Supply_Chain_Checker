@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-import uuid
 from pathlib import Path
 
 from supply_chain_checker.config import load_config
 from supply_chain_checker.logging_setup import setup_logging
+from supply_chain_checker.run_context import create_run_context
 from supply_chain_checker.scaffold import ensure_repository_layout
+from supply_chain_checker.services.csv_service import create_run_csv_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -36,39 +37,57 @@ def main() -> int:
     args = parser.parse_args()
 
     config = load_config(args.config)
-    run_id = uuid.uuid4().hex[:12]
+    run_context = create_run_context()
     log_file_path = setup_logging(
         logs_dir=config.paths.logs_dir,
         level=config.logging.level,
-        run_id=run_id,
+        run_id=run_context.run_id,
         file_name=config.logging.file_name,
     )
 
     logger.info(
         "run.started",
-        extra={"event": "run.started", "command": args.command, "run_id": run_id},
+        extra={"event": "run.started", "command": args.command, "run_id": run_context.run_id},
     )
 
     try:
         if args.command in {"extract", "assess"}:
             logger.info(
                 "command.received",
-                extra={"event": "command.received", "command": args.command, "run_id": run_id},
+                extra={
+                    "event": "command.received",
+                    "command": args.command,
+                    "run_id": run_context.run_id,
+                },
             )
             print(
                 f"Supply Chain Checker scaffold is ready. "
-                f"Command='{args.command}', config='{args.config}', run_id='{run_id}'."
+                f"Command='{args.command}', config='{args.config}', run_id='{run_context.run_id}'."
+            )
+            artifact_path = create_run_csv_artifact(
+                output_dir=config.paths.output_dir,
+                command=args.command,
+                run_context=run_context,
+            )
+            logger.info(
+                "run.artifact.created",
+                extra={
+                    "event": "run.artifact.created",
+                    "command": args.command,
+                    "run_id": run_context.run_id,
+                    "artifact_path": str(artifact_path),
+                },
             )
     finally:
         logger.info(
             "run.finished",
-            extra={"event": "run.finished", "command": args.command, "run_id": run_id},
+            extra={"event": "run.finished", "command": args.command, "run_id": run_context.run_id},
         )
         logger.info(
             "logging.file",
             extra={
                 "event": "logging.file",
-                "run_id": run_id,
+                "run_id": run_context.run_id,
                 "log_file_path": str(log_file_path),
             },
         )
