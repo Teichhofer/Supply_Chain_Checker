@@ -59,6 +59,15 @@ def test_status_service_rejects_invalid_payload(tmp_path) -> None:
         service.load()
 
 
+def test_status_service_rejects_non_mapping_root_payload(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text('["invalid"]', encoding="utf-8")
+    service = StatusService(status_file_path=status_path)
+
+    with pytest.raises(StatusTrackingError, match="format is invalid"):
+        service.load()
+
+
 def test_status_service_logs_error_domain_for_invalid_payload(tmp_path, caplog) -> None:
     status_path = tmp_path / "processed_files.json"
     status_path.write_text('{"processed_files": {}}', encoding="utf-8")

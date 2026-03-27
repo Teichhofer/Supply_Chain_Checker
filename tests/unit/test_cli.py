@@ -295,3 +295,35 @@ def test_main_extract_continues_after_single_document_failure(monkeypatch, tmp_p
     assert "uncertain" in csv_payload
     assert "Document processing failed: PdfProcessingError" in csv_payload
     assert "Missing required fields: quantity, supplier" in csv_payload
+
+
+def test_main_assess_marks_unprocessed_pdfs_as_processed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_1.pdf").write_text("dummy", encoding="utf-8")
+
+    output_dir = tmp_path / "data" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "extraction_20260327T100000Z_run1234567890.csv").write_text(
+        "run_id\nold\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "assess", "--config", str(config_file)]
+    )
+    assert cli.main() == 0
+
+    status_file = tmp_path / "data" / "state" / "processed_files.json"
+    payload = json.loads(status_file.read_text(encoding="utf-8"))
+    assert [entry["file_name"] for entry in payload["processed_files"]] == ["invoice_1.pdf"]
+
+
+def test_invoke_extraction_llm_placeholder_raises_clear_runtime_error() -> None:
+    with pytest.raises(RuntimeError, match="LLM provider invocation is not configured"):
+        cli._invoke_extraction_llm_placeholder("prompt")

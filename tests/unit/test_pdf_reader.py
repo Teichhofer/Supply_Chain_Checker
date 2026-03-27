@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from supply_chain_checker.services.ocr_service import OcrService
-from supply_chain_checker.services.pdf_reader import PdfReader
+from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
 
 
 def test_read_text_prefers_direct_extraction_and_skips_ocr(
@@ -56,3 +56,31 @@ def test_read_text_uses_ocr_for_unusable_direct_text(caplog: pytest.LogCaptureFi
     assert "pdf.read.unusable_text_detected" in caplog.text
     assert "ocr.started" in caplog.text
     assert "ocr.succeeded" in caplog.text
+
+
+def test_read_text_returns_unusable_direct_text_when_ocr_disabled(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    reader = PdfReader(
+        direct_extractor=lambda _: " \n\t ",
+        ocr_service=OcrService(engine=lambda _: "should not be used"),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        text = reader.read_text(Path("invoice.pdf"), use_ocr_fallback=False)
+
+    assert text == " \n\t "
+    assert "pdf.read.unusable_without_ocr" in caplog.text
+
+
+def test_read_text_raises_pdf_processing_error_for_direct_extractor_exception() -> None:
+    def _broken_extractor(_: Path) -> str:
+        raise RuntimeError("boom")
+
+    reader = PdfReader(
+        direct_extractor=_broken_extractor,
+        ocr_service=OcrService(engine=lambda _: "unused"),
+    )
+
+    with pytest.raises(PdfProcessingError, match="Could not read PDF text"):
+        reader.read_text(Path("invoice.pdf"))

@@ -48,3 +48,58 @@ def test_parser_raises_controlled_error_for_invalid_status_value() -> None:
 
     with pytest.raises(ParsingError, match="extraction_status"):
         parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+
+def test_parser_accepts_top_level_product_list() -> None:
+    response = '[{"product_name":"Screw","quantity":"10","supplier":"FastCo"}]'
+
+    products = parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+    assert len(products) == 1
+    assert products[0].product_name == "Screw"
+
+
+def test_parser_raises_for_non_object_product_entry() -> None:
+    response = '{"products": ["invalid"]}'
+
+    with pytest.raises(ParsingError, match="must be an object"):
+        parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+
+def test_parser_normalizes_numeric_fields() -> None:
+    response = (
+        '{"products": [{"product_name": "Copper", "quantity": 12, "supplier": "ACME", '
+        '"manufacturer": 42, "article_number": 12.5}]}'
+    )
+
+    products = parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+    assert products[0].quantity == "12"
+    assert products[0].manufacturer == "42"
+    assert products[0].article_number == "12.5"
+
+
+def test_parser_raises_for_invalid_payload_shape() -> None:
+    with pytest.raises(ParsingError, match="must be a list or an object"):
+        parse_extraction_response(response_text='"unexpected"', document_name="doc.pdf")
+
+
+def test_parser_accepts_explicit_confirmed_and_uncertain_status_values() -> None:
+    response = (
+        '{"products": ['
+        '{"product_name":"A","quantity":"1","supplier":"S","extraction_status":"confirmed"},'
+        '{"product_name":"B","quantity":"2","supplier":"S","extraction_status":"uncertain"}'
+        "]}"
+    )
+
+    products = parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+    assert products[0].extraction_status == "confirmed"
+    assert products[1].extraction_status == "uncertain"
+
+
+def test_parser_raises_for_non_text_like_field_values() -> None:
+    response = '{"products": [{"product_name": [], "quantity": "1", "supplier": "S"}]}'
+
+    with pytest.raises(ParsingError, match="Expected text-like value"):
+        parse_extraction_response(response_text=response, document_name="doc.pdf")
