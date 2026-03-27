@@ -14,6 +14,9 @@ paths:
 logging:
   level: INFO
   file_name: app.log
+llm:
+  provider: openai
+  model: gpt-4.1-mini
 """
 
 
