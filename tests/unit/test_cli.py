@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 
 from supply_chain_checker import cli
+from supply_chain_checker.models import ExtractedProduct
+from supply_chain_checker.services.pdf_reader import PdfProcessingError
 from supply_chain_checker.services.status_service import StatusTrackingError
 
 _MINIMAL_CONFIG = """
@@ -223,3 +225,49 @@ def test_main_aborts_on_corrupt_status_by_default(monkeypatch, tmp_path: Path) -
 
     with pytest.raises(StatusTrackingError, match="Could not read status file"):
         cli.main()
+
+
+def test_main_extract_continues_after_single_document_failure(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "broken.pdf").write_text("dummy", encoding="utf-8")
+    (input_dir / "partial.pdf").write_text("dummy", encoding="utf-8")
+
+    class _FakeExtractionService:
+        def extract_products_from_document(self, **kwargs: object) -> list[ExtractedProduct]:
+            pdf_path = kwargs["pdf_path"]
+            assert isinstance(pdf_path, Path)
+            if pdf_path.name == "broken.pdf":
+                raise PdfProcessingError("broken document")
+            return [
+                ExtractedProduct(
+                    document_name=pdf_path.name,
+                    product_name="Widget",
+                    quantity="UNKNOWN",
+                    supplier="UNKNOWN",
+                    extraction_status="uncertain",
+                    extraction_hint="Missing required fields: quantity, supplier",
+                )
+            ]
+
+    monkeypatch.setattr(cli, "_build_extraction_service", lambda: _FakeExtractionService())
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+
+    output_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    assert len(output_files) == 1
+
+    csv_payload = output_files[0].read_text(encoding="utf-8")
+    assert "broken.pdf" in csv_payload
+    assert "partial.pdf" in csv_payload
+    assert "uncertain" in csv_payload
+    assert "Document processing failed: PdfProcessingError" in csv_payload
+    assert "Missing required fields: quantity, supplier" in csv_payload
