@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext
 from supply_chain_checker.services.csv_service import StorageIOError, write_extraction_products_csv

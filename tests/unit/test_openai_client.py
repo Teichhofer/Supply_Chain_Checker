@@ -5,7 +5,10 @@ from __future__ import annotations
 import pytest
 
 from supply_chain_checker.services.llm.base import LlmClientError, LlmRequestContext
-from supply_chain_checker.services.llm.openai_client import OpenAIAssessmentClient, OpenAIExtractionClient
+from supply_chain_checker.services.llm.openai_client import (
+    OpenAIAssessmentClient,
+    OpenAIExtractionClient,
+)
 
 
 def test_openai_extraction_client_returns_response_on_success() -> None:
