@@ -106,14 +106,22 @@ def load_config(config_path: str | Path) -> AppConfig:
             "Invalid logging.level. Expected one of DEBUG, INFO, WARNING, ERROR."
         )
 
-    file_name = _string(logging_section.get("file_name", "supply_chain_checker.log"), "logging.file_name")
+    file_name = _string(
+        logging_section.get("file_name", "supply_chain_checker.log"),
+        "logging.file_name",
+    )
 
     provider = _required_string(llm_section, key="provider", section_name="llm")
     model = _required_string(llm_section, key="model", section_name="llm")
 
     timeout_seconds = _int(llm_section.get("timeout_seconds", 30), "llm.timeout_seconds", minimum=1)
     max_retries = _int(llm_section.get("max_retries", 2), "llm.max_retries", minimum=0)
-    temperature = _float(llm_section.get("temperature", 0.0), "llm.temperature", minimum=0.0, maximum=2.0)
+    temperature = _float(
+        llm_section.get("temperature", 0.0),
+        "llm.temperature",
+        minimum=0.0,
+        maximum=2.0,
+    )
 
     extraction_prompt = _string(
         prompts_section.get(
@@ -146,9 +154,15 @@ def load_config(config_path: str | Path) -> AppConfig:
 
     return AppConfig(
         paths=PathsConfig(
-            input_dir=Path(_string(paths_section.get("input_dir", "data/input"), "paths.input_dir")),
-            output_dir=Path(_string(paths_section.get("output_dir", "data/output"), "paths.output_dir")),
-            state_dir=Path(_string(paths_section.get("state_dir", "data/state"), "paths.state_dir")),
+            input_dir=Path(
+                _string(paths_section.get("input_dir", "data/input"), "paths.input_dir")
+            ),
+            output_dir=Path(
+                _string(paths_section.get("output_dir", "data/output"), "paths.output_dir")
+            ),
+            state_dir=Path(
+                _string(paths_section.get("state_dir", "data/state"), "paths.state_dir")
+            ),
             logs_dir=Path(_string(paths_section.get("logs_dir", "logs"), "paths.logs_dir")),
         ),
         logging=LoggingConfig(level=level, file_name=file_name),
@@ -199,7 +213,7 @@ def _int(value: Any, field_name: str, *, minimum: int) -> int:
         raise ConfigurationError(f"Field '{field_name}' must be an integer.")
     if value < minimum:
         raise ConfigurationError(f"Field '{field_name}' must be >= {minimum}.")
-    return value
+    return int(value)
 
 
 def _float(value: Any, field_name: str, *, minimum: float, maximum: float) -> float:
