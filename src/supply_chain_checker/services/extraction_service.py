@@ -9,7 +9,7 @@ from pathlib import Path
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.parsers import ParsingError, parse_extraction_response
 from supply_chain_checker.services.llm import (
-    ExtractionLlmGateway,
+    LlmGateway,
     LlmRequestContext,
     build_extraction_prompt,
 )
@@ -27,7 +27,7 @@ class ExtractionService:
         self,
         *,
         pdf_reader: PdfReader,
-        llm_client: ExtractionLlmGateway,
+        llm_client: LlmGateway,
         prompt_builder: Callable[..., str] = build_extraction_prompt,
         response_parser: Callable[..., list[ExtractedProduct]] = parse_extraction_response,
     ) -> None:

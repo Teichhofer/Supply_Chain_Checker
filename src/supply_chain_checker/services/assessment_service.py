@@ -9,7 +9,7 @@ from typing import Literal
 
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.parsers import ParsedAssessment, ParsingError, parse_assessment_response
-from supply_chain_checker.services.llm import AssessmentLlmGateway, LlmRequestContext
+from supply_chain_checker.services.llm import LlmGateway, LlmRequestContext
 from supply_chain_checker.services.llm.base import LlmClientError
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class AssessmentService:
     def __init__(
         self,
         *,
-        llm_client: AssessmentLlmGateway,
+        llm_client: LlmGateway,
         prompt_builder: Callable[..., str] | None = None,
         max_reason_words: int = 100,
     ) -> None:
