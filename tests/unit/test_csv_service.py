@@ -7,12 +7,16 @@ from datetime import UTC, datetime
 
 import pytest
 
+from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext
+from supply_chain_checker.services.assessment_service import ProductAssessmentResult
 from supply_chain_checker.services.csv_service import (
     StorageIOError,
     build_run_csv_filename,
     create_run_csv_artifact,
+    read_extraction_products_csv,
     select_latest_extraction_csv,
+    write_assessment_results_csv,
 )
 
 
@@ -68,3 +72,49 @@ def test_select_latest_extraction_csv_raises_when_no_valid_file_exists(tmp_path)
 
     with pytest.raises(StorageIOError, match="Run 'extract' first"):
         select_latest_extraction_csv(output_dir=tmp_path)
+
+
+def test_read_extraction_products_csv_loads_domain_rows(tmp_path) -> None:
+    csv_path = tmp_path / "extraction_20260327T120000Z_run123.csv"
+    csv_path.write_text(
+        "\n".join(
+            [
+                "run_id,document_name,product_name,quantity,supplier,manufacturer,article_number,extraction_status,extraction_hint",
+                "run123,invoice.pdf,Bolt,5,ACME,SupplierCo,ART-1,confirmed,",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    products = read_extraction_products_csv(csv_path=csv_path)
+
+    assert len(products) == 1
+    assert products[0].product_name == "Bolt"
+    assert products[0].extraction_status == "confirmed"
+
+
+def test_write_assessment_results_csv_keeps_skipped_products_and_skip_reason(tmp_path) -> None:
+    context = RunContext(
+        run_id="runid1234567",
+        started_at_utc=datetime(2026, 3, 27, 12, 0, tzinfo=UTC),
+    )
+    result = ProductAssessmentResult(
+        product=ExtractedProduct(
+            document_name="invoice.pdf",
+            product_name="UNKNOWN",
+            quantity="5",
+            supplier="ACME",
+            extraction_status="uncertain",
+        ),
+        assessment_status="skipped",
+        raw_response=None,
+        skip_reason="UNCONFIRMED_EXTRACTION",
+    )
+
+    csv_path = write_assessment_results_csv(output_dir=tmp_path, run_context=context, results=[result])
+    with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
+        rows = list(csv.DictReader(csv_file))
+
+    assert len(rows) == 1
+    assert rows[0]["bewertungsstatus"] == "skipped"
+    assert rows[0]["skip_reason"] == "UNCONFIRMED_EXTRACTION"

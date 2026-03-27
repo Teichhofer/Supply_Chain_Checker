@@ -327,3 +327,38 @@ def test_main_assess_marks_unprocessed_pdfs_as_processed(monkeypatch, tmp_path: 
 def test_invoke_extraction_llm_placeholder_raises_clear_runtime_error() -> None:
     with pytest.raises(RuntimeError, match="LLM provider invocation is not configured"):
         cli._invoke_extraction_llm_placeholder("prompt")
+
+
+def test_invoke_assessment_llm_placeholder_raises_clear_runtime_error() -> None:
+    with pytest.raises(RuntimeError, match="LLM provider invocation is not configured"):
+        cli._invoke_assessment_llm_placeholder("prompt")
+
+
+def test_main_assess_keeps_skipped_products_in_output_csv(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    output_dir = tmp_path / "data" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "extraction_20260327T100000Z_run1234567890.csv").write_text(
+        "\n".join(
+            [
+                "run_id,document_name,product_name,quantity,supplier,manufacturer,article_number,extraction_status,extraction_hint",
+                "run123,invoice_1.pdf,UNKNOWN,10,ACME,,,uncertain,",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "assess", "--config", str(config_file)]
+    )
+    assert cli.main() == 0
+
+    assessment_files = list(output_dir.glob("assessment_*.csv"))
+    assert len(assessment_files) == 1
+    csv_payload = assessment_files[0].read_text(encoding="utf-8")
+    assert "skipped" in csv_payload
+    assert "UNCONFIRMED_EXTRACTION" in csv_payload
