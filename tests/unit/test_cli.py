@@ -109,3 +109,27 @@ def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: 
     assert len(extract_files) == 1
     assert len(assess_files) == 1
     assert extract_files[0].name != assess_files[0].name
+
+
+def test_main_reads_and_updates_status_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_a.pdf").write_text("dummy", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+
+    status_file = tmp_path / "data" / "state" / "processed_files.json"
+    assert status_file.exists()
+
+    payload = status_file.read_text(encoding="utf-8")
+    assert '"file_name": "invoice_a.pdf"' in payload
+    assert '"processed_at_utc":' in payload

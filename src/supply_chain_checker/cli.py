@@ -11,6 +11,7 @@ from supply_chain_checker.logging_setup import setup_logging
 from supply_chain_checker.run_context import create_run_context
 from supply_chain_checker.scaffold import ensure_repository_layout
 from supply_chain_checker.services.csv_service import create_run_csv_artifact
+from supply_chain_checker.services.status_service import StatusService
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ def main() -> int:
         extra={"event": "run.started", "command": args.command, "run_id": run_context.run_id},
     )
 
+    status_service = StatusService(status_file_path=config.paths.state_dir / "processed_files.json")
+    status_service.load()
+
     try:
         if args.command in {"extract", "assess"}:
             logger.info(
@@ -78,6 +82,11 @@ def main() -> int:
                     "artifact_path": str(artifact_path),
                 },
             )
+
+            for pdf_path in sorted(config.paths.input_dir.glob("*.pdf")):
+                status_service.mark_processed(pdf_path.name)
+
+            status_service.persist()
     finally:
         logger.info(
             "run.finished",
