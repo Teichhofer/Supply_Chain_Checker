@@ -48,6 +48,7 @@ Version 1 umfasst ausschließlich:
 4. **Erweiterbarkeit sicherstellen**: LLM-Anbindung, PDF-Verarbeitung und Ausgabe gekapselt aufbauen.
 5. **Keine versteckte Magie**: Explizite und lesbare Lösungen bevorzugen.
 6. **Tests sind Teil der Implementierung**: Code ohne Tests gilt nicht als fertig; Ziel ist 100 % Codeabdeckung.
+7. **Verbindliche Qualitätsregel**: Bei fehlgeschlagenen Tests muss so lange nachgebessert werden, bis alle Tests erfolgreich sind; Aufgaben gelten erst dann als abgeschlossen.
 
 ## Technische Leitplanken
 - **Programmiersprache:** Python
