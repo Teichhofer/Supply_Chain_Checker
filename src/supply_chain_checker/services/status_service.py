@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,11 @@ class StatusService:
         self._status_file_path = status_file_path
         self._entries_by_file: dict[str, ProcessedFileStatus] = {}
 
-    def load(self) -> dict[str, ProcessedFileStatus]:
+    def load(
+        self,
+        *,
+        on_corrupt_file: Literal["abort", "fallback_empty"] = "abort",
+    ) -> dict[str, ProcessedFileStatus]:
         """Load status entries from disk and cache them in memory."""
 
         if not self._status_file_path.exists():
@@ -46,17 +51,45 @@ class StatusService:
             return dict(self._entries_by_file)
 
         try:
-            raw_payload = json.loads(self._status_file_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.error(
-                "status.load.failed",
+            loaded_entries = self._read_entries_from_status_file()
+        except StatusTrackingError as exc:
+            should_fallback = on_corrupt_file == "fallback_empty"
+            logger.log(
+                logging.WARNING if should_fallback else logging.ERROR,
+                "status.load.corrupt",
                 extra={
-                    "event": "status.load.failed",
+                    "event": "status.load.corrupt",
                     "status_file_path": str(self._status_file_path),
-                    "error_type": type(exc).__name__,
+                    "error_type": type(exc.__cause__ or exc).__name__,
+                    "error_domain": "status",
+                    "fallback_applied": should_fallback,
+                    "on_corrupt_file": on_corrupt_file,
                 },
             )
+            if should_fallback:
+                self._entries_by_file = {}
+                return dict(self._entries_by_file)
+            raise
+
+        self._entries_by_file = loaded_entries
+        logger.info(
+            "status.load.succeeded",
+            extra={
+                "event": "status.load.succeeded",
+                "status_file_path": str(self._status_file_path),
+                "processed_files_count": len(self._entries_by_file),
+            },
+        )
+        return dict(self._entries_by_file)
+
+    def _read_entries_from_status_file(self) -> dict[str, ProcessedFileStatus]:
+        try:
+            raw_payload = json.loads(self._status_file_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
             raise StatusTrackingError("Could not read status file.") from exc
+
+        if not isinstance(raw_payload, dict):
+            raise StatusTrackingError("Status file format is invalid.")
 
         entries = raw_payload.get("processed_files", [])
         if not isinstance(entries, list):
@@ -83,17 +116,7 @@ class StatusService:
                 processed_at_utc=processed_at_utc,
                 file_hash=file_hash,
             )
-
-        self._entries_by_file = loaded_entries
-        logger.info(
-            "status.load.succeeded",
-            extra={
-                "event": "status.load.succeeded",
-                "status_file_path": str(self._status_file_path),
-                "processed_files_count": len(self._entries_by_file),
-            },
-        )
-        return dict(self._entries_by_file)
+        return loaded_entries
 
     def mark_processed(self, file_name: str, *, file_hash: str | None = None) -> None:
         """Upsert an entry for a processed file."""

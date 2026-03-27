@@ -52,7 +52,7 @@ def main() -> int:
     )
 
     status_service = StatusService(status_file_path=config.paths.state_dir / "processed_files.json")
-    status_service.load()
+    status_service.load(on_corrupt_file=config.parameters.on_corrupt_status_file)
 
     try:
         if args.command in {"extract", "assess"}:

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from supply_chain_checker import cli
+from supply_chain_checker.services.status_service import StatusTrackingError
 
 _MINIMAL_CONFIG = """
 paths:
@@ -18,6 +19,19 @@ logging:
 llm:
   provider: openai
   model: gpt-4.1-mini
+"""
+
+_FALLBACK_STATUS_CONFIG = """
+paths:
+  logs_dir: logs
+logging:
+  level: INFO
+  file_name: app.log
+llm:
+  provider: openai
+  model: gpt-4.1-mini
+parameters:
+  on_corrupt_status_file: fallback_empty
 """
 
 
@@ -133,3 +147,38 @@ def test_main_reads_and_updates_status_file(monkeypatch, tmp_path: Path) -> None
     payload = status_file.read_text(encoding="utf-8")
     assert '"file_name": "invoice_a.pdf"' in payload
     assert '"processed_at_utc":' in payload
+
+
+def test_main_uses_status_fallback_strategy_from_config(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_FALLBACK_STATUS_CONFIG, encoding="utf-8")
+
+    state_dir = tmp_path / "data" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "processed_files.json").write_text("{invalid json", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+
+
+def test_main_aborts_on_corrupt_status_by_default(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    state_dir = tmp_path / "data" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "processed_files.json").write_text("{invalid json", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    with pytest.raises(StatusTrackingError, match="Could not read status file"):
+        cli.main()

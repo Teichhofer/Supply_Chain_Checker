@@ -62,6 +62,7 @@ class ParametersConfig:
     use_ocr_fallback: bool
     max_products_per_document: int
     max_assessment_reason_words: int
+    on_corrupt_status_file: str
 
 
 @dataclass(frozen=True)
@@ -151,6 +152,14 @@ def load_config(config_path: str | Path) -> AppConfig:
         "parameters.max_assessment_reason_words",
         minimum=1,
     )
+    on_corrupt_status_file = _string(
+        parameters_section.get("on_corrupt_status_file", "abort"),
+        "parameters.on_corrupt_status_file",
+    ).lower()
+    if on_corrupt_status_file not in {"abort", "fallback_empty"}:
+        raise ConfigurationError(
+            "Field 'parameters.on_corrupt_status_file' must be one of: abort, fallback_empty."
+        )
 
     return AppConfig(
         paths=PathsConfig(
@@ -178,6 +187,7 @@ def load_config(config_path: str | Path) -> AppConfig:
             use_ocr_fallback=use_ocr_fallback,
             max_products_per_document=max_products_per_document,
             max_assessment_reason_words=max_assessment_reason_words,
+            on_corrupt_status_file=on_corrupt_status_file,
         ),
     )
 
