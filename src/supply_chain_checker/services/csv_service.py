@@ -91,9 +91,7 @@ def select_latest_extraction_csv(*, output_dir: Path) -> Path:
                 "error_type": "StorageIOError",
             },
         )
-        raise StorageIOError(
-            f"No extraction CSV available in '{output_dir}'. Run 'extract' first."
-        )
+        raise StorageIOError(f"No extraction CSV available in '{output_dir}'. Run 'extract' first.")
 
     latest_candidate = max(candidates, key=lambda entry: (entry[0], entry[1]))[2]
     logger.info(

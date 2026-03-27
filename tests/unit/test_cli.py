@@ -10,8 +10,8 @@ import pytest
 
 from supply_chain_checker import cli
 from supply_chain_checker.models import ExtractedProduct
-from supply_chain_checker.services.pdf_reader import PdfProcessingError
 from supply_chain_checker.services.csv_service import StorageIOError
+from supply_chain_checker.services.pdf_reader import PdfProcessingError
 from supply_chain_checker.services.status_service import StatusTrackingError
 
 _MINIMAL_CONFIG = """
