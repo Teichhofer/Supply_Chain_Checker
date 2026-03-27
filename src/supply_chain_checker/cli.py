@@ -12,16 +12,18 @@ from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext, create_run_context
 from supply_chain_checker.scaffold import ensure_repository_layout
 from supply_chain_checker.services.csv_service import (
-    create_run_csv_artifact,
+    read_extraction_products_csv,
     select_latest_extraction_csv,
+    write_assessment_results_csv,
     write_extraction_products_csv,
 )
+from supply_chain_checker.services.assessment_service import AssessmentService
 from supply_chain_checker.services.extraction_service import (
     ExtractionService,
     LlmClientError,
     ParsingError,
 )
-from supply_chain_checker.services.llm.openai_client import OpenAIExtractionClient
+from supply_chain_checker.services.llm.openai_client import OpenAIAssessmentClient, OpenAIExtractionClient
 from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
 from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
 from supply_chain_checker.services.status_service import StatusService
@@ -209,10 +211,20 @@ def _run_assess_command(*, config: AppConfig, run_context: RunContext) -> Path:
             "csv_path": str(latest_extraction_csv),
         },
     )
-    return create_run_csv_artifact(
-        output_dir=config.paths.output_dir,
+    products = read_extraction_products_csv(csv_path=latest_extraction_csv)
+    assessment_service = _build_assessment_service(
+        max_reason_words=config.parameters.max_assessment_reason_words
+    )
+    results = assessment_service.assess_products(
+        products=products,
+        assessment_prompt_template=config.prompts.assessment,
+        run_id=run_context.run_id,
         command="assess",
+    )
+    return write_assessment_results_csv(
+        output_dir=config.paths.output_dir,
         run_context=run_context,
+        results=results,
     )
 
 
@@ -225,4 +237,15 @@ def _run_ocr_placeholder(pdf_path: Path) -> str:
 
 
 def _invoke_extraction_llm_placeholder(_prompt: str) -> str:
+    raise RuntimeError("LLM provider invocation is not configured.")
+
+
+def _build_assessment_service(*, max_reason_words: int) -> AssessmentService:
+    return AssessmentService(
+        llm_client=OpenAIAssessmentClient(invoker=_invoke_assessment_llm_placeholder),
+        max_reason_words=max_reason_words,
+    )
+
+
+def _invoke_assessment_llm_placeholder(_prompt: str) -> str:
     raise RuntimeError("LLM provider invocation is not configured.")

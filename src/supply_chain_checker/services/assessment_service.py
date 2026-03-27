@@ -14,7 +14,7 @@ from supply_chain_checker.services.llm.base import LlmClientError
 
 logger = logging.getLogger(__name__)
 
-AssessmentStatus = Literal["assessed", "failed", "parse_error"]
+AssessmentStatus = Literal["assessed", "failed", "parse_error", "skipped"]
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class ProductAssessmentResult:
     normalized_assessment: ParsedAssessment | None = None
     assessment_hint: str | None = None
     error_type: str | None = None
+    skip_reason: str | None = None
 
 
 class AssessmentService:
@@ -55,6 +56,29 @@ class AssessmentService:
 
         results: list[ProductAssessmentResult] = []
         for product in products:
+            skip_reason = _determine_skip_reason(product)
+            if skip_reason is not None:
+                logger.info(
+                    "assessment.skipped",
+                    extra={
+                        "event": "assessment.skipped",
+                        "run_id": run_id,
+                        "command": command,
+                        "document_name": product.document_name,
+                        "product_name": product.product_name,
+                        "skip_reason": skip_reason,
+                    },
+                )
+                results.append(
+                    ProductAssessmentResult(
+                        product=product,
+                        assessment_status="skipped",
+                        raw_response=None,
+                        skip_reason=skip_reason,
+                    )
+                )
+                continue
+
             logger.info(
                 "assessment.started",
                 extra={
@@ -154,6 +178,24 @@ def _build_assessment_prompt(*, template: str, product: ExtractedProduct) -> str
         extraction_status=product.extraction_status,
         extraction_hint=product.extraction_hint or "",
     )
+
+
+def _determine_skip_reason(product: ExtractedProduct) -> str | None:
+    if product.extraction_status != "confirmed":
+        return "UNCONFIRMED_EXTRACTION"
+
+    if _is_missing(product.product_name):
+        return "MISSING_PRODUCT_NAME"
+    if _is_missing(product.supplier):
+        return "MISSING_SUPPLIER"
+    if _is_missing(product.quantity):
+        return "MISSING_QUANTITY"
+    return None
+
+
+def _is_missing(value: str) -> bool:
+    normalized = value.strip().upper()
+    return normalized in {"", "UNKNOWN", "N/A", "-"}
 
 
 __all__ = ["AssessmentService", "ProductAssessmentResult", "LlmClientError"]

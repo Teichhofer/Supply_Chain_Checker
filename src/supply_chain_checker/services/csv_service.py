@@ -10,6 +10,7 @@ from pathlib import Path
 
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext
+from supply_chain_checker.services.assessment_service import ProductAssessmentResult
 
 logger = logging.getLogger(__name__)
 
@@ -180,4 +181,103 @@ def write_extraction_products_csv(
             "row_count": len(products),
         },
     )
+    return csv_path
+
+
+def read_extraction_products_csv(*, csv_path: Path) -> list[ExtractedProduct]:
+    """Load extracted products from a previous extraction CSV artefact."""
+
+    try:
+        with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
+            reader = csv.DictReader(csv_file)
+            products = [
+                ExtractedProduct(
+                    document_name=(row.get("document_name") or "").strip(),
+                    product_name=(row.get("product_name") or "").strip(),
+                    quantity=(row.get("quantity") or "").strip(),
+                    supplier=(row.get("supplier") or "").strip(),
+                    manufacturer=(row.get("manufacturer") or "").strip() or None,
+                    article_number=(row.get("article_number") or "").strip() or None,
+                    extraction_status=(
+                        (row.get("extraction_status") or "uncertain").strip() or "uncertain"
+                    ),
+                    extraction_hint=(row.get("extraction_hint") or "").strip() or None,
+                )
+                for row in reader
+            ]
+    except OSError as exc:
+        raise StorageIOError(f"Could not read extraction CSV: {csv_path}") from exc
+
+    return products
+
+
+def write_assessment_results_csv(
+    *,
+    output_dir: Path,
+    run_context: RunContext,
+    results: list[ProductAssessmentResult],
+) -> Path:
+    """Persist per-product assessment outcomes including skipped rows."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = output_dir / build_run_csv_filename(command="assess", run_context=run_context)
+    fieldnames = (
+        "run_id",
+        "document_name",
+        "product_name",
+        "quantity",
+        "supplier",
+        "manufacturer",
+        "article_number",
+        "extraction_status",
+        "extraction_hint",
+        "bewertungsstatus",
+        "skip_reason",
+        "risikostufe",
+        "preisänderung_prozent",
+        "begründung",
+        "assessment_hint",
+        "error_type",
+    )
+
+    try:
+        with csv_path.open("w", encoding="utf-8", newline="") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for result in results:
+                writer.writerow(
+                    {
+                        "run_id": run_context.run_id,
+                        "document_name": result.product.document_name,
+                        "product_name": result.product.product_name,
+                        "quantity": result.product.quantity,
+                        "supplier": result.product.supplier,
+                        "manufacturer": result.product.manufacturer or "",
+                        "article_number": result.product.article_number or "",
+                        "extraction_status": result.product.extraction_status,
+                        "extraction_hint": result.product.extraction_hint or "",
+                        "bewertungsstatus": result.assessment_status,
+                        "skip_reason": result.skip_reason or "",
+                        "risikostufe": (
+                            result.normalized_assessment.risk_level
+                            if result.normalized_assessment is not None
+                            else ""
+                        ),
+                        "preisänderung_prozent": (
+                            result.normalized_assessment.price_change_percent
+                            if result.normalized_assessment is not None
+                            else ""
+                        ),
+                        "begründung": (
+                            result.normalized_assessment.reason
+                            if result.normalized_assessment is not None
+                            else ""
+                        ),
+                        "assessment_hint": result.assessment_hint or "",
+                        "error_type": result.error_type or "",
+                    }
+                )
+    except OSError as exc:
+        raise StorageIOError(f"Could not write assessment CSV: {csv_path}") from exc
+
     return csv_path

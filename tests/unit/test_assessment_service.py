@@ -100,3 +100,47 @@ def test_assess_products_marks_parse_errors_instead_of_dropping_rows() -> None:
     assert results[0].error_type == "ParsingError"
     assert results[0].raw_response is not None
     assert "preisänderung_prozent" in (results[0].assessment_hint or "")
+
+
+def test_assess_products_skips_uncertain_products_without_sending_llm_request() -> None:
+    product = ExtractedProduct(
+        document_name="a.pdf",
+        product_name="UNKNOWN",
+        quantity="10",
+        supplier="ACME",
+        extraction_status="uncertain",
+    )
+    llm_client = RecordingAssessmentClient()
+    service = AssessmentService(llm_client=llm_client)
+
+    results = service.assess_products(
+        products=[product],
+        assessment_prompt_template="Assess {product_name}",
+    )
+
+    assert llm_client.prompts == []
+    assert len(results) == 1
+    assert results[0].assessment_status == "skipped"
+    assert results[0].skip_reason == "UNCONFIRMED_EXTRACTION"
+
+
+def test_assess_products_skips_products_with_missing_required_fields() -> None:
+    product = ExtractedProduct(
+        document_name="a.pdf",
+        product_name="Bolt",
+        quantity="N/A",
+        supplier="ACME",
+        extraction_status="confirmed",
+    )
+    llm_client = RecordingAssessmentClient()
+    service = AssessmentService(llm_client=llm_client)
+
+    results = service.assess_products(
+        products=[product],
+        assessment_prompt_template="Assess {product_name}",
+    )
+
+    assert llm_client.prompts == []
+    assert len(results) == 1
+    assert results[0].assessment_status == "skipped"
+    assert results[0].skip_reason == "MISSING_QUANTITY"
