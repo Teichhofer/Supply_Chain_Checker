@@ -11,20 +11,25 @@ from supply_chain_checker.logging_setup import setup_logging
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext, create_run_context
 from supply_chain_checker.scaffold import ensure_repository_layout
+from supply_chain_checker.services.assessment_service import (
+    AssessmentService,
+    ProductAssessmentResult,
+)
 from supply_chain_checker.services.csv_service import (
     read_extraction_products_csv,
     select_latest_extraction_csv,
     write_assessment_results_csv,
     write_extraction_products_csv,
 )
-from supply_chain_checker.services.assessment_service import AssessmentService
-from supply_chain_checker.services.assessment_service import ProductAssessmentResult
 from supply_chain_checker.services.extraction_service import (
     ExtractionService,
     LlmClientError,
     ParsingError,
 )
-from supply_chain_checker.services.llm.openai_client import OpenAIAssessmentClient, OpenAIExtractionClient
+from supply_chain_checker.services.llm.openai_client import (
+    OpenAIAssessmentClient,
+    OpenAIExtractionClient,
+)
 from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
 from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
 from supply_chain_checker.services.status_service import StatusService

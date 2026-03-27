@@ -20,7 +20,11 @@ class ParsedAssessment:
     reason: str
 
 
-def parse_assessment_response(*, response_text: str, max_reason_words: int = 100) -> ParsedAssessment:
+def parse_assessment_response(
+    *,
+    response_text: str,
+    max_reason_words: int = 100,
+) -> ParsedAssessment:
     """Parse and validate one LLM assessment response."""
 
     try:

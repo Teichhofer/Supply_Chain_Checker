@@ -8,7 +8,7 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 
-from supply_chain_checker.models import ExtractedProduct
+from supply_chain_checker.models import ExtractedProduct, ExtractionStatus
 from supply_chain_checker.run_context import RunContext
 from supply_chain_checker.services.assessment_service import ProductAssessmentResult
 
@@ -22,6 +22,11 @@ class StorageIOError(Exception):
 _EXTRACTION_CSV_PATTERN = re.compile(
     r"^extraction_(?P<timestamp>\d{8}T\d{6}Z)_(?P<run_id>[A-Za-z0-9_-]+)\.csv$"
 )
+
+
+def _normalize_extraction_status(raw_status: str | None) -> ExtractionStatus:
+    normalized = (raw_status or "uncertain").strip().lower()
+    return "confirmed" if normalized == "confirmed" else "uncertain"
 
 
 def build_run_csv_filename(*, command: str, run_context: RunContext) -> str:
@@ -198,9 +203,7 @@ def read_extraction_products_csv(*, csv_path: Path) -> list[ExtractedProduct]:
                     supplier=(row.get("supplier") or "").strip(),
                     manufacturer=(row.get("manufacturer") or "").strip() or None,
                     article_number=(row.get("article_number") or "").strip() or None,
-                    extraction_status=(
-                        (row.get("extraction_status") or "uncertain").strip() or "uncertain"
-                    ),
+                    extraction_status=_normalize_extraction_status(row.get("extraction_status")),
                     extraction_hint=(row.get("extraction_hint") or "").strip() or None,
                 )
                 for row in reader

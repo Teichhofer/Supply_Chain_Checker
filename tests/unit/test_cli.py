@@ -364,7 +364,11 @@ def test_main_assess_keeps_skipped_products_in_output_csv(monkeypatch, tmp_path:
     assert "UNCONFIRMED_EXTRACTION" in csv_payload
 
 
-def test_main_assess_prints_operational_console_summary(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_main_assess_prints_operational_console_summary(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"

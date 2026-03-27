@@ -20,7 +20,10 @@ class RecordingAssessmentClient:
         if any(product_name in prompt for product_name in self.failing_products):
             raise LlmClientError("simulated provider failure")
 
-        return '{"risikostufe": 4, "preisänderung_prozent": 3.5, "begründung": "stabile lieferkette"}'
+        return (
+            '{"risikostufe": 4, "preisänderung_prozent": 3.5, '
+            '"begründung": "stabile lieferkette"}'
+        )
 
 
 def test_assess_products_sends_exactly_one_llm_request_per_product() -> None:
@@ -79,7 +82,9 @@ def test_assess_products_isolates_llm_failures_per_product() -> None:
 
 
 def test_assess_products_marks_parse_errors_instead_of_dropping_rows() -> None:
-    product = ExtractedProduct(document_name="a.pdf", product_name="Bolt", quantity="10", supplier="ACME")
+    product = ExtractedProduct(
+        document_name="a.pdf", product_name="Bolt", quantity="10", supplier="ACME"
+    )
 
     class InvalidPayloadClient:
         def assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
