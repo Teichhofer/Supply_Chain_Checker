@@ -240,6 +240,17 @@ def write_assessment_results_csv(
         "error_type",
     )
 
+    logger.info(
+        "csv.write.started",
+        extra={
+            "event": "csv.write.started",
+            "command": "assess",
+            "run_id": run_context.run_id,
+            "csv_path": str(csv_path),
+            "row_count": len(results),
+        },
+    )
+
     try:
         with csv_path.open("w", encoding="utf-8", newline="") as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
@@ -278,6 +289,27 @@ def write_assessment_results_csv(
                     }
                 )
     except OSError as exc:
+        logger.error(
+            "csv.write.failed",
+            extra={
+                "event": "csv.write.failed",
+                "command": "assess",
+                "run_id": run_context.run_id,
+                "csv_path": str(csv_path),
+                "error_type": type(exc).__name__,
+            },
+        )
         raise StorageIOError(f"Could not write assessment CSV: {csv_path}") from exc
+
+    logger.info(
+        "csv.write.succeeded",
+        extra={
+            "event": "csv.write.succeeded",
+            "command": "assess",
+            "run_id": run_context.run_id,
+            "csv_path": str(csv_path),
+            "row_count": len(results),
+        },
+    )
 
     return csv_path
