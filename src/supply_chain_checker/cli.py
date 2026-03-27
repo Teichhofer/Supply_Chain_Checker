@@ -13,6 +13,7 @@ from supply_chain_checker.run_context import RunContext, create_run_context
 from supply_chain_checker.scaffold import ensure_repository_layout
 from supply_chain_checker.services.csv_service import (
     create_run_csv_artifact,
+    select_latest_extraction_csv,
     write_extraction_products_csv,
 )
 from supply_chain_checker.services.extraction_service import (
@@ -88,11 +89,7 @@ def main() -> int:
                     status_service=status_service,
                 )
                 if args.command == "extract"
-                else create_run_csv_artifact(
-                    output_dir=config.paths.output_dir,
-                    command=args.command,
-                    run_context=run_context,
-                )
+                else _run_assess_command(config=config, run_context=run_context)
             )
             logger.info(
                 "run.artifact.created",
@@ -198,6 +195,24 @@ def _run_extract_command(
         output_dir=config.paths.output_dir,
         run_context=run_context,
         products=extracted_products,
+    )
+
+
+def _run_assess_command(*, config: AppConfig, run_context: RunContext) -> Path:
+    latest_extraction_csv = select_latest_extraction_csv(output_dir=config.paths.output_dir)
+    logger.info(
+        "assessment.input.selected",
+        extra={
+            "event": "assessment.input.selected",
+            "command": "assess",
+            "run_id": run_context.run_id,
+            "csv_path": str(latest_extraction_csv),
+        },
+    )
+    return create_run_csv_artifact(
+        output_dir=config.paths.output_dir,
+        command="assess",
+        run_context=run_context,
     )
 
 

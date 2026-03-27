@@ -19,6 +19,12 @@ def test_module_main_executes(monkeypatch, capsys, tmp_path) -> None:
     )
 
     monkeypatch.chdir(tmp_path)
+    output_dir = tmp_path / "data" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "extraction_20260327T120000Z_run123abc456.csv").write_text(
+        "run_id,document_name\nrun123,invoice.pdf\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(
         "sys.argv", ["supply_chain_checker", "assess", "--config", str(config_file)]
     )
