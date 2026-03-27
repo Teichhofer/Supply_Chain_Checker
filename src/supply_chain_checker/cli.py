@@ -26,10 +26,7 @@ from supply_chain_checker.services.extraction_service import (
     LlmClientError,
     ParsingError,
 )
-from supply_chain_checker.services.llm.openai_client import (
-    OpenAIAssessmentClient,
-    OpenAIExtractionClient,
-)
+from supply_chain_checker.services.llm.openai_client import OpenAIClient
 from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
 from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
 from supply_chain_checker.services.status_service import StatusService
@@ -137,7 +134,10 @@ def _build_extraction_service() -> ExtractionService:
             direct_extractor=_read_document_text_placeholder,
             ocr_service=OcrService(engine=_run_ocr_placeholder),
         ),
-        llm_client=OpenAIExtractionClient(invoker=_invoke_extraction_llm_placeholder),
+        llm_client=OpenAIClient(
+            extraction_invoker=_invoke_extraction_llm_placeholder,
+            assessment_invoker=_invoke_assessment_llm_placeholder,
+        ),
     )
 
 
@@ -283,7 +283,10 @@ def _invoke_extraction_llm_placeholder(_prompt: str) -> str:
 
 def _build_assessment_service(*, max_reason_words: int) -> AssessmentService:
     return AssessmentService(
-        llm_client=OpenAIAssessmentClient(invoker=_invoke_assessment_llm_placeholder),
+        llm_client=OpenAIClient(
+            extraction_invoker=_invoke_extraction_llm_placeholder,
+            assessment_invoker=_invoke_assessment_llm_placeholder,
+        ),
         max_reason_words=max_reason_words,
     )
 

@@ -1,4 +1,4 @@
-"""OpenAI client implementations for extraction and assessment gateways."""
+"""OpenAI client implementation for extraction and assessment gateway methods."""
 
 from __future__ import annotations
 
@@ -6,20 +6,25 @@ import logging
 from collections.abc import Callable
 
 from supply_chain_checker.services.llm.base import (
-    AssessmentLlmGateway,
-    ExtractionLlmGateway,
     LlmClientError,
+    LlmGateway,
     LlmRequestContext,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class OpenAIExtractionClient(ExtractionLlmGateway):
-    """Thin adapter that hides provider-specific extraction invocation details."""
+class OpenAIClient(LlmGateway):
+    """Thin adapter that hides provider-specific invocation details."""
 
-    def __init__(self, invoker: Callable[[str], str]) -> None:
-        self._invoker = invoker
+    def __init__(
+        self,
+        *,
+        extraction_invoker: Callable[[str], str],
+        assessment_invoker: Callable[[str], str],
+    ) -> None:
+        self._extraction_invoker = extraction_invoker
+        self._assessment_invoker = assessment_invoker
 
     def extract_products(self, *, prompt: str, context: LlmRequestContext) -> str:
         logger.info(
@@ -31,7 +36,7 @@ class OpenAIExtractionClient(ExtractionLlmGateway):
             },
         )
         try:
-            response = self._invoker(prompt)
+            response = self._extraction_invoker(prompt)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "llm.extraction.failed",
@@ -55,13 +60,6 @@ class OpenAIExtractionClient(ExtractionLlmGateway):
         )
         return response
 
-
-class OpenAIAssessmentClient(AssessmentLlmGateway):
-    """Thin adapter that hides provider-specific assessment invocation details."""
-
-    def __init__(self, invoker: Callable[[str], str]) -> None:
-        self._invoker = invoker
-
     def assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
         logger.info(
             "llm.assessment.requested",
@@ -72,7 +70,7 @@ class OpenAIAssessmentClient(AssessmentLlmGateway):
             },
         )
         try:
-            response = self._invoker(prompt)
+            response = self._assessment_invoker(prompt)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "llm.assessment.failed",
