@@ -164,6 +164,31 @@ python -m supply_chain_checker assess --config config/config.yaml
 
 ---
 
+
+## Qualitätssicherung
+
+Für reproduzierbare lokale Qualitätschecks ist ein zentraler Befehl vorhanden:
+
+```bash
+make check
+```
+
+Der Befehl führt nacheinander aus:
+
+- Format-Checks (`black --check`, `ruff format --check`)
+- Linting (`ruff check`)
+- Type-Checks (`mypy`)
+- Tests inkl. Coverage (`pytest --cov ...`)
+
+Coverage-Reports werden dabei erzeugt als:
+
+- `coverage.xml`
+- `htmlcov/index.html`
+
+Dieselbe Prüfkette läuft auch in CI über GitHub Actions (`.github/workflows/quality.yml`).
+
+---
+
 ## Konkreter Umsetzungsplan
 
 Ein detaillierter, task-basierter Entwicklungsplan für V1 liegt unter:

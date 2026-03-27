@@ -6,7 +6,9 @@ from runpy import run_module
 
 
 def test_module_main_executes(monkeypatch, capsys) -> None:
-    monkeypatch.setattr("sys.argv", ["supply_chain_checker", "assess", "--config", "config/config.yaml"])
+    monkeypatch.setattr(
+        "sys.argv", ["supply_chain_checker", "assess", "--config", "config/config.yaml"]
+    )
 
     try:
         run_module("supply_chain_checker", run_name="__main__")
