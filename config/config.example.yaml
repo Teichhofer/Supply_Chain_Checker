@@ -27,3 +27,4 @@ parameters:
   use_ocr_fallback: true
   max_products_per_document: 100
   max_assessment_reason_words: 100
+  on_corrupt_status_file: abort

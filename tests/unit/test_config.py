@@ -52,6 +52,7 @@ def test_load_config_reads_full_settings(tmp_path) -> None:
     assert config.parameters.use_ocr_fallback is False
     assert config.parameters.max_products_per_document == 42
     assert config.parameters.max_assessment_reason_words == 80
+    assert config.parameters.on_corrupt_status_file == "abort"
 
 
 def test_load_config_applies_defaults_for_optional_fields(tmp_path) -> None:
@@ -69,6 +70,23 @@ def test_load_config_applies_defaults_for_optional_fields(tmp_path) -> None:
     assert config.llm.timeout_seconds == 30
     assert config.prompts.extraction
     assert config.parameters.use_ocr_fallback is True
+    assert config.parameters.on_corrupt_status_file == "abort"
+
+
+def test_load_config_accepts_status_fallback_strategy(tmp_path) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "llm:\n"
+        "  provider: openai\n"
+        "  model: gpt-4.1-mini\n"
+        "parameters:\n"
+        "  on_corrupt_status_file: fallback_empty\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.parameters.on_corrupt_status_file == "fallback_empty"
 
 
 def test_load_config_rejects_invalid_level(tmp_path) -> None:
@@ -176,4 +194,19 @@ def test_load_config_rejects_non_numeric_temperature(tmp_path) -> None:
     )
 
     with pytest.raises(ConfigurationError, match="llm.temperature"):
+        load_config(config_file)
+
+
+def test_load_config_rejects_unknown_status_corruption_strategy(tmp_path) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "llm:\n"
+        "  provider: openai\n"
+        "  model: gpt-4.1-mini\n"
+        "parameters:\n"
+        "  on_corrupt_status_file: continue\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigurationError, match="parameters.on_corrupt_status_file"):
         load_config(config_file)

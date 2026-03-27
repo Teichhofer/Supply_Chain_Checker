@@ -59,6 +59,18 @@ def test_status_service_rejects_invalid_payload(tmp_path) -> None:
         service.load()
 
 
+def test_status_service_logs_error_domain_for_invalid_payload(tmp_path, caplog) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text('{"processed_files": {}}', encoding="utf-8")
+    service = StatusService(status_file_path=status_path)
+
+    with caplog.at_level("ERROR"), pytest.raises(StatusTrackingError):
+        service.load(on_corrupt_file="abort")
+
+    assert "status.load.corrupt" in caplog.text
+    assert any(record.__dict__.get("error_domain") == "status" for record in caplog.records)
+
+
 def test_status_service_raises_on_invalid_json(tmp_path) -> None:
     status_path = tmp_path / "processed_files.json"
     status_path.write_text("{invalid json", encoding="utf-8")
@@ -67,6 +79,19 @@ def test_status_service_raises_on_invalid_json(tmp_path) -> None:
 
     with pytest.raises(StatusTrackingError, match="Could not read status file"):
         service.load()
+
+
+def test_status_service_fallbacks_to_empty_entries_for_invalid_json(tmp_path, caplog) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text("{invalid json", encoding="utf-8")
+    service = StatusService(status_file_path=status_path)
+
+    with caplog.at_level("WARNING"):
+        loaded = service.load(on_corrupt_file="fallback_empty")
+
+    assert loaded == {}
+    assert "status.load.corrupt" in caplog.text
+    assert any(record.__dict__.get("error_domain") == "status" for record in caplog.records)
 
 
 def test_status_service_rejects_invalid_entry_shape(tmp_path) -> None:
