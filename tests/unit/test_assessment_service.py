@@ -20,7 +20,7 @@ class RecordingAssessmentClient:
         if any(product_name in prompt for product_name in self.failing_products):
             raise LlmClientError("simulated provider failure")
 
-        return '{"risk_level": 4, "reason": "stable"}'
+        return '{"risikostufe": 4, "preisänderung_prozent": 3.5, "begründung": "stabile lieferkette"}'
 
 
 def test_assess_products_sends_exactly_one_llm_request_per_product() -> None:
@@ -49,6 +49,8 @@ def test_assess_products_sends_exactly_one_llm_request_per_product() -> None:
     assert len(results) == len(products)
     assert [result.product.product_name for result in results] == ["Bolt", "Nut", "Screw"]
     assert {result.assessment_status for result in results} == {"assessed"}
+    assert all(result.normalized_assessment is not None for result in results)
+    assert [result.normalized_assessment.risk_level for result in results] == [4, 4, 4]
 
 
 def test_assess_products_isolates_llm_failures_per_product() -> None:
@@ -74,3 +76,27 @@ def test_assess_products_isolates_llm_failures_per_product() -> None:
     assert [result.product.product_name for result in results] == ["Bolt", "Nut", "Screw"]
     assert [result.assessment_status for result in results] == ["assessed", "failed", "assessed"]
     assert [result.error_type for result in results] == [None, "LlmClientError", None]
+
+
+def test_assess_products_marks_parse_errors_instead_of_dropping_rows() -> None:
+    product = ExtractedProduct(document_name="a.pdf", product_name="Bolt", quantity="10", supplier="ACME")
+
+    class InvalidPayloadClient:
+        def assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
+            del prompt, context
+            return '{"risikostufe": 7, "begründung": "fehlendes pflichtfeld"}'
+
+    service = AssessmentService(llm_client=InvalidPayloadClient())
+
+    results = service.assess_products(
+        products=[product],
+        assessment_prompt_template="Assess {product_name}",
+        run_id="run100",
+    )
+
+    assert len(results) == 1
+    assert results[0].assessment_status == "parse_error"
+    assert results[0].normalized_assessment is None
+    assert results[0].error_type == "ParsingError"
+    assert results[0].raw_response is not None
+    assert "preisänderung_prozent" in (results[0].assessment_hint or "")

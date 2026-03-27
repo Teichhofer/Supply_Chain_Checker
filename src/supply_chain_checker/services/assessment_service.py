@@ -8,12 +8,13 @@ from dataclasses import dataclass
 from typing import Literal
 
 from supply_chain_checker.models import ExtractedProduct
+from supply_chain_checker.parsers import ParsedAssessment, ParsingError, parse_assessment_response
 from supply_chain_checker.services.llm import AssessmentLlmGateway, LlmRequestContext
 from supply_chain_checker.services.llm.base import LlmClientError
 
 logger = logging.getLogger(__name__)
 
-AssessmentStatus = Literal["assessed", "failed"]
+AssessmentStatus = Literal["assessed", "failed", "parse_error"]
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,8 @@ class ProductAssessmentResult:
     product: ExtractedProduct
     assessment_status: AssessmentStatus
     raw_response: str | None
+    normalized_assessment: ParsedAssessment | None = None
+    assessment_hint: str | None = None
     error_type: str | None = None
 
 
@@ -34,9 +37,11 @@ class AssessmentService:
         *,
         llm_client: AssessmentLlmGateway,
         prompt_builder: Callable[..., str] | None = None,
+        max_reason_words: int = 100,
     ) -> None:
         self._llm_client = llm_client
         self._prompt_builder = prompt_builder or _build_assessment_prompt
+        self._max_reason_words = max_reason_words
 
     def assess_products(
         self,
@@ -88,6 +93,34 @@ class AssessmentService:
                 )
                 continue
 
+            try:
+                normalized_assessment = parse_assessment_response(
+                    response_text=response,
+                    max_reason_words=self._max_reason_words,
+                )
+            except ParsingError as exc:
+                logger.warning(
+                    "assessment.parsing.failed",
+                    extra={
+                        "event": "assessment.parsing.failed",
+                        "run_id": run_id,
+                        "command": command,
+                        "document_name": product.document_name,
+                        "product_name": product.product_name,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                results.append(
+                    ProductAssessmentResult(
+                        product=product,
+                        assessment_status="parse_error",
+                        raw_response=response,
+                        assessment_hint=str(exc),
+                        error_type=type(exc).__name__,
+                    )
+                )
+                continue
+
             logger.info(
                 "assessment.succeeded",
                 extra={
@@ -103,6 +136,7 @@ class AssessmentService:
                     product=product,
                     assessment_status="assessed",
                     raw_response=response,
+                    normalized_assessment=normalized_assessment,
                 )
             )
 
