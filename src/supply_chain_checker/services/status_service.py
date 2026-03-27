@@ -94,7 +94,9 @@ class StatusService:
             key=lambda candidate_path: candidate_path.name,
         )
         unprocessed_paths = [
-            pdf_path for pdf_path in discovered_pdf_paths if pdf_path.name not in self._entries_by_file
+            pdf_path
+            for pdf_path in discovered_pdf_paths
+            if pdf_path.name not in self._entries_by_file
         ]
         logger.info(
             "status.selection.completed",
