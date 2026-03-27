@@ -18,6 +18,7 @@ from supply_chain_checker.services.csv_service import (
     write_extraction_products_csv,
 )
 from supply_chain_checker.services.assessment_service import AssessmentService
+from supply_chain_checker.services.assessment_service import ProductAssessmentResult
 from supply_chain_checker.services.extraction_service import (
     ExtractionService,
     LlmClientError,
@@ -221,11 +222,46 @@ def _run_assess_command(*, config: AppConfig, run_context: RunContext) -> Path:
         run_id=run_context.run_id,
         command="assess",
     )
+    _print_assessment_console_results(results=results)
     return write_assessment_results_csv(
         output_dir=config.paths.output_dir,
         run_context=run_context,
         results=results,
     )
+
+
+def _print_assessment_console_results(*, results: list[ProductAssessmentResult]) -> None:
+    """Print an operational summary with one line per assessed product."""
+
+    print("Assessment results (Produkt, Lieferant, Risikostufe, Preisänderung, Status):")
+    if not results:
+        print("- keine Produkte vorhanden")
+        return
+
+    for result in results:
+        risk_level = (
+            str(result.normalized_assessment.risk_level)
+            if result.normalized_assessment is not None
+            else "-"
+        )
+        price_change = (
+            f"{result.normalized_assessment.price_change_percent:.2f}%"
+            if result.normalized_assessment is not None
+            else "-"
+        )
+        status_detail = (
+            result.skip_reason
+            or result.error_type
+            or result.assessment_hint
+            or "OK"
+        )
+        print(
+            f"- Produktname: {result.product.product_name} | "
+            f"Lieferant: {result.product.supplier} | "
+            f"Risikostufe: {risk_level} | "
+            f"Preisänderung: {price_change} | "
+            f"Status: {result.assessment_status} ({status_detail})"
+        )
 
 
 def _read_document_text_placeholder(pdf_path: Path) -> str:
