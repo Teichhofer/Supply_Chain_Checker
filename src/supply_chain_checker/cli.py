@@ -83,7 +83,7 @@ def main() -> int:
                 },
             )
 
-            for pdf_path in sorted(config.paths.input_dir.glob("*.pdf")):
+            for pdf_path in status_service.select_unprocessed_pdfs(config.paths.input_dir):
                 status_service.mark_processed(pdf_path.name)
 
             status_service.persist()

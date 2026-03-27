@@ -82,6 +82,31 @@ class StatusService:
         )
         return dict(self._entries_by_file)
 
+    def select_unprocessed_pdfs(self, input_dir: Path) -> list[Path]:
+        """Return deterministically sorted PDF paths not yet marked as processed."""
+
+        discovered_pdf_paths = sorted(
+            (
+                candidate_path
+                for candidate_path in input_dir.iterdir()
+                if candidate_path.is_file() and candidate_path.suffix.lower() == ".pdf"
+            ),
+            key=lambda candidate_path: candidate_path.name,
+        )
+        unprocessed_paths = [
+            pdf_path for pdf_path in discovered_pdf_paths if pdf_path.name not in self._entries_by_file
+        ]
+        logger.info(
+            "status.selection.completed",
+            extra={
+                "event": "status.selection.completed",
+                "input_dir": str(input_dir),
+                "discovered_pdf_count": len(discovered_pdf_paths),
+                "selected_pdf_count": len(unprocessed_paths),
+            },
+        )
+        return unprocessed_paths
+
     def _read_entries_from_status_file(self) -> dict[str, ProcessedFileStatus]:
         try:
             raw_payload = json.loads(self._status_file_path.read_text(encoding="utf-8"))

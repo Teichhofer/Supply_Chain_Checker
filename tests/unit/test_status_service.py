@@ -214,3 +214,20 @@ def test_status_service_raises_when_persist_write_fails(tmp_path, monkeypatch) -
 
     with pytest.raises(StatusTrackingError, match="Could not persist status file"):
         service.persist()
+
+
+def test_select_unprocessed_pdfs_returns_sorted_new_pdfs_only(tmp_path) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "b_invoice.pdf").write_text("dummy", encoding="utf-8")
+    (input_dir / "a_invoice.PDF").write_text("dummy", encoding="utf-8")
+    (input_dir / "notes.txt").write_text("dummy", encoding="utf-8")
+    (input_dir / "subdir").mkdir()
+
+    service = StatusService(status_file_path=tmp_path / "processed_files.json")
+    service.load()
+    service.mark_processed("b_invoice.pdf")
+
+    selected = service.select_unprocessed_pdfs(input_dir)
+
+    assert [path.name for path in selected] == ["a_invoice.PDF"]
