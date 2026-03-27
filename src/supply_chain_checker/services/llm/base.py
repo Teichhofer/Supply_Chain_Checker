@@ -26,3 +26,10 @@ class ExtractionLlmGateway(Protocol):
 
     def extract_products(self, *, prompt: str, context: LlmRequestContext) -> str:
         """Return raw model response for extraction prompt."""
+
+
+class AssessmentLlmGateway(Protocol):
+    """Abstraction for per-product assessment requests."""
+
+    def assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
+        """Return raw model response for one product assessment prompt."""
