@@ -11,7 +11,9 @@ from supply_chain_checker.services.ocr_service import OcrService
 from supply_chain_checker.services.pdf_reader import PdfReader
 
 
-def test_read_text_prefers_direct_extraction_and_skips_ocr(caplog: pytest.LogCaptureFixture) -> None:
+def test_read_text_prefers_direct_extraction_and_skips_ocr(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     ocr_calls: list[Path] = []
 
     def _direct_extractor(_: Path) -> str:

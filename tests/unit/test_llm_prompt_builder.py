@@ -10,8 +10,7 @@ from supply_chain_checker.services.llm.prompts import build_extraction_prompt
 def test_build_extraction_prompt_renders_template_with_expected_fields() -> None:
     prompt = build_extraction_prompt(
         template=(
-            "Doc={document_name}; Limit={max_products_per_document}; "
-            "Content={document_text}"
+            "Doc={document_name}; Limit={max_products_per_document}; Content={document_text}"
         ),
         document_text="Widget A x 10",
         document_name="invoice_42.pdf",

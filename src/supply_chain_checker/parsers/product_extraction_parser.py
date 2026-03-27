@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
-from supply_chain_checker.models import ExtractedProduct
+from supply_chain_checker.models import ExtractedProduct, ExtractionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def _extract_products(payload: Any) -> list[Any]:
     if isinstance(payload, list):
         return payload
     if isinstance(payload, dict) and isinstance(payload.get("products"), list):
-        return payload["products"]
+        return cast(list[Any], payload["products"])
     raise ParsingError("LLM extraction response must be a list or an object containing 'products'.")
 
 
@@ -72,13 +72,15 @@ def _parse_product(*, raw_product: dict[str, Any], document_name: str) -> Extrac
     )
 
 
-def _normalized_status(value: Any) -> str:
+def _normalized_status(value: Any) -> ExtractionStatus:
     normalized = _normalized_text(value)
     if normalized is None:
         return "confirmed"
     lowered = normalized.lower()
-    if lowered in {"confirmed", "uncertain"}:
-        return lowered
+    if lowered == "confirmed":
+        return "confirmed"
+    if lowered == "uncertain":
+        return "uncertain"
     raise ParsingError("Field 'extraction_status' must be either 'confirmed' or 'uncertain'.")
 
 

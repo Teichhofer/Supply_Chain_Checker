@@ -7,8 +7,8 @@ import logging
 from pathlib import Path
 
 from supply_chain_checker.config import AppConfig, load_config
-from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.logging_setup import setup_logging
+from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext, create_run_context
 from supply_chain_checker.scaffold import ensure_repository_layout
 from supply_chain_checker.services.csv_service import (
