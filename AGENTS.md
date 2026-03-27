@@ -64,3 +64,26 @@ Beispiele:
 python -m supply_chain_checker extract --config config/config.yaml
 python -m supply_chain_checker assess --config config/config.yaml
 ```
+
+## Verbindliche Leitlinie: Fehler- und Logging-Konzept (ab Task 0.3)
+
+### Fehlerdomänen
+Implementierungen müssen Fehler in folgende Domänen einordnen:
+- Konfiguration (`ConfigurationError`)
+- PDF-Verarbeitung (`PdfProcessingError`)
+- OCR (`OcrProcessingError`)
+- LLM (`LlmClientError`)
+- Parsing (`ParsingError`)
+- IO (`StorageIOError`)
+- Status (`StatusTrackingError`)
+
+Regel: Fehler möglichst quellenah in Domänenfehler übersetzen; einzelne fehlerhafte Dokumente/Produkte dürfen den gesamten Lauf nicht stoppen.
+
+### Logging-Regeln
+- Jedes Kernmodul verwendet einen benannten Logger (`logging.getLogger(__name__)`).
+- Logs verwenden stabile Eventnamen (z. B. `run.started`, `config.load.failed`, `pdf.read.failed`, `assessment.succeeded`).
+- Recoverable Fehler auf Dokument-/Produkt-Ebene als `WARNING`, nicht-recoverable Run-Fehler als `ERROR`.
+- Event-Logs sollen, wenn verfügbar, Felder wie `event`, `run_id`, `command`, `document_path`, `product_name`, `error_type` enthalten.
+
+### Referenz
+Die vollständige Richtlinie ist in `docs/ADR-0003-fehler-und-logging-konzept.md` dokumentiert und bei neuen Implementierungen verbindlich zu beachten.
