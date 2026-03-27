@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -56,3 +57,135 @@ def test_status_service_rejects_invalid_payload(tmp_path) -> None:
 
     with pytest.raises(StatusTrackingError, match="format is invalid"):
         service.load()
+
+
+def test_status_service_raises_on_invalid_json(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text("{invalid json", encoding="utf-8")
+
+    service = StatusService(status_file_path=status_path)
+
+    with pytest.raises(StatusTrackingError, match="Could not read status file"):
+        service.load()
+
+
+def test_status_service_rejects_invalid_entry_shape(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text('{"processed_files": ["bad"]}', encoding="utf-8")
+
+    service = StatusService(status_file_path=status_path)
+
+    with pytest.raises(StatusTrackingError, match="must be a mapping"):
+        service.load()
+
+
+def test_status_service_rejects_invalid_entry_fields(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "processed_files": [
+                    {"file_name": "", "processed_at_utc": "2026-01-01T00:00:00Z"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    service = StatusService(status_file_path=status_path)
+
+    with pytest.raises(StatusTrackingError, match="invalid file_name"):
+        service.load()
+
+
+def test_status_service_rejects_invalid_processed_timestamp(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "processed_files": [
+                    {"file_name": "invoice_01.pdf", "processed_at_utc": ""},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    service = StatusService(status_file_path=status_path)
+
+    with pytest.raises(StatusTrackingError, match="invalid processed_at_utc"):
+        service.load()
+
+
+def test_status_service_rejects_invalid_hash_type(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "processed_files": [
+                    {
+                        "file_name": "invoice_01.pdf",
+                        "processed_at_utc": "2026-01-01T00:00:00Z",
+                        "file_hash": 123,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    service = StatusService(status_file_path=status_path)
+
+    with pytest.raises(StatusTrackingError, match="invalid file_hash"):
+        service.load()
+
+
+def test_status_service_load_reads_valid_entries(tmp_path) -> None:
+    status_path = tmp_path / "processed_files.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "processed_files": [
+                    {
+                        "file_name": "invoice_01.pdf",
+                        "processed_at_utc": "2026-01-01T00:00:00Z",
+                        "file_hash": "hash-1",
+                    },
+                    {
+                        "file_name": "invoice_02.pdf",
+                        "processed_at_utc": "2026-01-02T00:00:00Z",
+                        "file_hash": None,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    service = StatusService(status_file_path=status_path)
+    loaded = service.load()
+
+    assert loaded["invoice_01.pdf"].file_hash == "hash-1"
+    assert loaded["invoice_02.pdf"].processed_at_utc == "2026-01-02T00:00:00Z"
+
+
+def test_status_service_rejects_blank_file_name_on_mark_processed(tmp_path) -> None:
+    service = StatusService(status_file_path=tmp_path / "processed_files.json")
+
+    with pytest.raises(StatusTrackingError, match="file_name must be a non-empty string"):
+        service.mark_processed("   ")
+
+
+def test_status_service_raises_when_persist_write_fails(tmp_path, monkeypatch) -> None:
+    status_path = tmp_path / "processed_files.json"
+    service = StatusService(status_file_path=status_path)
+    service.load()
+    service.mark_processed("invoice_03.pdf")
+
+    def _raise_os_error(*args, **kwargs) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", _raise_os_error)
+
+    with pytest.raises(StatusTrackingError, match="Could not persist status file"):
+        service.persist()
