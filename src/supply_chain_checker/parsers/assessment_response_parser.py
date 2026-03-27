@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from typing import Any, cast
@@ -89,12 +90,18 @@ def _parse_price_change_percent(value: Any) -> float:
             raise ParsingError("Field 'preisänderung_prozent' is required.")
         normalized = normalized.replace(",", ".")
         try:
-            return float(normalized)
+            parsed = float(normalized)
         except ValueError as exc:
             raise ParsingError("Field 'preisänderung_prozent' must be numeric.") from exc
+        if not math.isfinite(parsed):
+            raise ParsingError("Field 'preisänderung_prozent' must be finite.")
+        return parsed
 
     if isinstance(value, (int, float)):
-        return float(value)
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ParsingError("Field 'preisänderung_prozent' must be finite.")
+        return parsed
 
     raise ParsingError("Field 'preisänderung_prozent' must be numeric.")
 

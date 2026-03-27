@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -235,6 +236,8 @@ def _float(value: Any, field_name: str, *, minimum: float, maximum: float) -> fl
         raise ConfigurationError(f"Field '{field_name}' must be a number.")
 
     numeric_value = float(value)
+    if not math.isfinite(numeric_value):
+        raise ConfigurationError(f"Field '{field_name}' must be finite.")
     if numeric_value < minimum or numeric_value > maximum:
         raise ConfigurationError(f"Field '{field_name}' must be between {minimum} and {maximum}.")
     return numeric_value
