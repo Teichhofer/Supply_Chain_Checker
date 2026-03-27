@@ -9,10 +9,10 @@ import pytest
 
 from supply_chain_checker.run_context import RunContext
 from supply_chain_checker.services.csv_service import (
+    StorageIOError,
     build_run_csv_filename,
     create_run_csv_artifact,
     select_latest_extraction_csv,
-    StorageIOError,
 )
 
 
