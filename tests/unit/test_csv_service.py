@@ -5,10 +5,14 @@ from __future__ import annotations
 import csv
 from datetime import UTC, datetime
 
+import pytest
+
 from supply_chain_checker.run_context import RunContext
 from supply_chain_checker.services.csv_service import (
     build_run_csv_filename,
     create_run_csv_artifact,
+    select_latest_extraction_csv,
+    StorageIOError,
 )
 
 
@@ -43,3 +47,24 @@ def test_create_run_csv_artifact_contains_run_id_for_log_correlation(tmp_path) -
     assert len(rows) == 1
     assert rows[0]["run_id"] == "runid1234567"
     assert rows[0]["command"] == "extract"
+
+
+def test_select_latest_extraction_csv_uses_timestamp_in_file_name(tmp_path) -> None:
+    older = tmp_path / "extraction_20260327T100000Z_runolder1234.csv"
+    newer = tmp_path / "extraction_20260327T120000Z_runnewer1234.csv"
+    ignored = tmp_path / "extraction_invalid.csv"
+
+    older.write_text("old", encoding="utf-8")
+    newer.write_text("new", encoding="utf-8")
+    ignored.write_text("ignored", encoding="utf-8")
+
+    selected = select_latest_extraction_csv(output_dir=tmp_path)
+
+    assert selected == newer
+
+
+def test_select_latest_extraction_csv_raises_when_no_valid_file_exists(tmp_path) -> None:
+    (tmp_path / "assessment_20260327T120000Z_run1234.csv").write_text("", encoding="utf-8")
+
+    with pytest.raises(StorageIOError, match="Run 'extract' first"):
+        select_latest_extraction_csv(output_dir=tmp_path)

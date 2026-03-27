@@ -11,6 +11,7 @@ import pytest
 from supply_chain_checker import cli
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.services.pdf_reader import PdfProcessingError
+from supply_chain_checker.services.csv_service import StorageIOError
 from supply_chain_checker.services.status_service import StatusTrackingError
 
 _MINIMAL_CONFIG = """
@@ -110,6 +111,13 @@ def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: 
     config_file = tmp_path / "config.yaml"
     config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
 
+    output_dir = tmp_path / "data" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "extraction_20260327T100000Z_olderrun1234.csv").write_text(
+        "run_id\nold\n",
+        encoding="utf-8",
+    )
+
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
     )
@@ -123,9 +131,25 @@ def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: 
     extract_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
     assess_files = list((tmp_path / "data" / "output").glob("assessment_*.csv"))
 
-    assert len(extract_files) == 1
+    assert len(extract_files) >= 1
     assert len(assess_files) == 1
-    assert extract_files[0].name != assess_files[0].name
+    assert all(extract_file.name != assess_files[0].name for extract_file in extract_files)
+
+
+def test_main_assess_raises_clear_error_when_no_extraction_csv_exists(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "assess", "--config", str(config_file)]
+    )
+
+    with pytest.raises(StorageIOError, match="Run 'extract' first"):
+        cli.main()
 
 
 def test_main_reads_and_updates_status_file(monkeypatch, tmp_path: Path) -> None:
