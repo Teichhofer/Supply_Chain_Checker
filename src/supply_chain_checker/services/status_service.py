@@ -118,7 +118,10 @@ class StatusService:
                     "processed_at_utc": entry.processed_at_utc,
                     "file_hash": entry.file_hash,
                 }
-                for entry in sorted(self._entries_by_file.values(), key=lambda value: value.file_name)
+                for entry in sorted(
+                    self._entries_by_file.values(),
+                    key=lambda value: value.file_name,
+                )
             ]
         }
 
