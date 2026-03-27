@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -164,6 +165,46 @@ def test_main_uses_status_fallback_strategy_from_config(monkeypatch, tmp_path: P
     )
 
     assert cli.main() == 0
+
+
+def test_main_skips_already_processed_pdfs(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_old.pdf").write_text("dummy", encoding="utf-8")
+    (input_dir / "invoice_new.pdf").write_text("dummy", encoding="utf-8")
+
+    state_dir = tmp_path / "data" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "processed_files.json").write_text(
+        json.dumps(
+            {
+                "processed_files": [
+                    {
+                        "file_name": "invoice_old.pdf",
+                        "processed_at_utc": "2026-01-01T00:00:00Z",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+
+    status_file = tmp_path / "data" / "state" / "processed_files.json"
+    payload = json.loads(status_file.read_text(encoding="utf-8"))
+    file_names = [entry["file_name"] for entry in payload["processed_files"]]
+
+    assert file_names == ["invoice_new.pdf", "invoice_old.pdf"]
 
 
 def test_main_aborts_on_corrupt_status_by_default(monkeypatch, tmp_path: Path) -> None:
