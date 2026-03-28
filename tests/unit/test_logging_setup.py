@@ -45,7 +45,9 @@ def test_setup_logging_closes_previous_file_handlers(tmp_path) -> None:
 
     setup_logging(logs_dir=tmp_path, level="INFO", run_id="run-456", file_name="second.log")
 
-    previous_file_handlers = [handler for handler in previous_handlers if isinstance(handler, logging.FileHandler)]
+    previous_file_handlers = [
+        handler for handler in previous_handlers if isinstance(handler, logging.FileHandler)
+    ]
     assert previous_file_handlers
     for handler in previous_file_handlers:
         assert handler.stream is None
