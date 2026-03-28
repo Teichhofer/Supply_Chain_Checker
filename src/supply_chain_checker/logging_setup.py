@@ -30,6 +30,8 @@ def setup_logging(*, logs_dir: Path, level: str, run_id: str, file_name: str) ->
 
     for handler in list(root_logger.handlers):
         root_logger.removeHandler(handler)
+        if isinstance(handler, logging.FileHandler):
+            handler.close()
 
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)s | %(name)s | run_id=%(run_id)s | %(message)s",
