@@ -395,7 +395,9 @@ def test_main_extract_continues_after_single_document_failure(monkeypatch, tmp_p
     assert [entry["file_name"] for entry in payload["processed_files"]] == ["partial.pdf"]
 
 
-def test_main_extract_persists_status_immediately_after_success(monkeypatch, tmp_path: Path) -> None:
+def test_main_extract_persists_status_immediately_after_success(
+    monkeypatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"
