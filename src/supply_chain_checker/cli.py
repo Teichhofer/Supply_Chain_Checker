@@ -284,12 +284,12 @@ def _print_assessment_console_results(*, results: list[ProductAssessmentResult])
         )
 
 
-def _read_document_text_placeholder(pdf_path: Path) -> str:
-    raise RuntimeError(f"PDF text reader is not configured for '{pdf_path.name}'.")
-
-
 def _run_ocr_placeholder(pdf_path: Path) -> str:
     raise RuntimeError(f"OCR backend is not configured for '{pdf_path.name}'.")
+
+
+def _read_document_text_placeholder(pdf_path: Path) -> str:
+    raise RuntimeError(f"PDF text reader is not configured for '{pdf_path.name}'.")
 
 
 def _invoke_extraction_llm_placeholder(_prompt: str) -> str:
