@@ -6,7 +6,7 @@ import logging
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import yaml  # type: ignore[import-untyped]
 
@@ -172,7 +172,9 @@ def load_config(config_path: str | Path) -> AppConfig:
         raise ConfigurationError(
             "Field 'parameters.on_corrupt_status_file' must be one of: abort, fallback_empty."
         )
-    on_corrupt_status_file: Literal["abort", "fallback_empty"] = on_corrupt_status_file_raw
+    on_corrupt_status_file: Literal["abort", "fallback_empty"] = cast(
+        Literal["abort", "fallback_empty"], on_corrupt_status_file_raw
+    )
 
     return AppConfig(
         paths=PathsConfig(
