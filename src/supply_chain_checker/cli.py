@@ -28,7 +28,11 @@ from supply_chain_checker.services.extraction_service import (
 )
 from supply_chain_checker.services.llm.openai_client import OpenAIAdapterConfig, OpenAIClient
 from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
-from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
+from supply_chain_checker.services.pdf_reader import (
+    PdfProcessingError,
+    PdfReader,
+    extract_text_with_pypdf,
+)
 from supply_chain_checker.services.status_service import StatusService
 
 logger = logging.getLogger(__name__)
@@ -141,7 +145,7 @@ def main() -> int:
 def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
     return ExtractionService(
         pdf_reader=PdfReader(
-            direct_extractor=_read_document_text_placeholder,
+            direct_extractor=extract_text_with_pypdf,
             ocr_service=OcrService(engine=_run_ocr_placeholder),
         ),
         llm_client=OpenAIClient(
@@ -282,12 +286,6 @@ def _print_assessment_console_results(*, results: list[ProductAssessmentResult])
             f"Preisänderung: {price_change} | "
             f"Status: {result.assessment_status} ({status_detail})"
         )
-
-
-def _read_document_text_placeholder(pdf_path: Path) -> str:
-    return pdf_path.read_text(encoding="utf-8")
-
-
 def _run_ocr_placeholder(pdf_path: Path) -> str:
     raise RuntimeError(f"OCR backend is not configured for '{pdf_path.name}'.")
 

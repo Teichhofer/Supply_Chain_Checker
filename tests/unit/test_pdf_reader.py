@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import logging
+import sys
+import types
 from pathlib import Path
 
 import pytest
 
-from supply_chain_checker.services.ocr_service import OcrService
-from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
+from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
+from supply_chain_checker.services.pdf_reader import (
+    PdfProcessingError,
+    PdfReader,
+    extract_text_with_pypdf,
+)
 
 
 def test_read_text_prefers_direct_extraction_and_skips_ocr(
@@ -84,3 +90,35 @@ def test_read_text_raises_pdf_processing_error_for_direct_extractor_exception() 
 
     with pytest.raises(PdfProcessingError, match="Could not read PDF text"):
         reader.read_text(Path("invoice.pdf"))
+
+
+def test_read_text_raises_ocr_processing_error_when_ocr_engine_fails() -> None:
+    reader = PdfReader(
+        direct_extractor=lambda _: "   ",
+        ocr_service=OcrService(engine=lambda _: (_ for _ in ()).throw(RuntimeError("ocr down"))),
+    )
+
+    with pytest.raises(OcrProcessingError, match="OCR failed"):
+        reader.read_text(Path("invoice.pdf"))
+
+
+def test_extract_text_with_pypdf_returns_concatenated_page_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakePage:
+        def __init__(self, text: str | None) -> None:
+            self._text = text
+
+        def extract_text(self) -> str | None:
+            return self._text
+
+    class _FakePdfReader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_FakePage("Invoice Header"), _FakePage(None), _FakePage("Line Item 1")]
+
+    fake_module = types.SimpleNamespace(PdfReader=_FakePdfReader)
+    monkeypatch.setitem(sys.modules, "pypdf", fake_module)
+
+    text = extract_text_with_pypdf(Path("invoice.pdf"))
+
+    assert text == "Invoice Header\nLine Item 1"
