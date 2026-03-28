@@ -104,8 +104,10 @@ def test_openai_client_preserves_domain_specific_assessment_errors(
 
 
 def test_openai_client_raises_configuration_error_without_api_key(
+    monkeypatch,
     adapter_config: OpenAIAdapterConfig,
 ) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     client = OpenAIClient(config=adapter_config, api_key="")
 
     with pytest.raises(LlmConfigurationError, match="OPENAI_API_KEY"):

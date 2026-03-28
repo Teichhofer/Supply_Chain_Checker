@@ -86,6 +86,10 @@ Danach Secrets laden (enthält u. a. den API Key):
 source config/secrets.env
 ```
 
+> Hinweis: Wenn `--config config/config.yaml` verwendet wird und `config/secrets.env` existiert,
+> lädt die CLI diese Datei automatisch beim Start (unterstützt `KEY=VALUE` und `export KEY=VALUE`).
+> Bereits gesetzte Umgebungsvariablen werden dabei nicht überschrieben.
+
 ### Bedeutung der Verzeichnisse
 
 - `data/input`: Neue, zu verarbeitende PDFs.
