@@ -50,7 +50,7 @@ class OpenAIClient(LlmGateway):
         assessment_invoker: Callable[[str], str] | None = None,
     ) -> None:
         self._config = config
-        self._api_key = (api_key or os.getenv("OPENAI_API_KEY", "")).strip()
+        self._api_key = (api_key or os.getenv("OPENAI_API_KEY") or "").strip()
         self._base_url = base_url.rstrip("/")
         self._extraction_invoker = extraction_invoker
         self._assessment_invoker = assessment_invoker
