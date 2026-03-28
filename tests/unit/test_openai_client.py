@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -14,7 +14,9 @@ from supply_chain_checker.services.llm.base import (
     LlmConfigurationError,
     LlmRateLimitError,
     LlmRequestContext,
+    LlmResponseError,
     LlmServiceError,
+    LlmTimeoutError,
 )
 from supply_chain_checker.services.llm.openai_client import OpenAIAdapterConfig, OpenAIClient
 
@@ -233,3 +235,176 @@ def test_openai_client_parses_real_http_response(
     )
 
     assert response == "json-response"
+
+
+def test_openai_client_maps_rate_limit_http_error(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    def _raise_http_error(*_args: object, **_kwargs: object):
+        raise HTTPError(
+            url="https://api.openai.com/v1/chat/completions",
+            code=429,
+            msg="Too Many Requests",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":"rate limit"}'),
+        )
+
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.urlopen",
+        _raise_http_error,
+    )
+
+    with pytest.raises(LlmRateLimitError, match="rate limit exceeded"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
+
+
+def test_openai_client_maps_generic_http_error_to_client_error(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    def _raise_http_error(*_args: object, **_kwargs: object):
+        raise HTTPError(
+            url="https://api.openai.com/v1/chat/completions",
+            code=418,
+            msg="I'm a teapot",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":"teapot"}'),
+        )
+
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.urlopen",
+        _raise_http_error,
+    )
+
+    with pytest.raises(LlmClientError, match="status code 418"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
+
+
+def test_openai_client_maps_direct_timeout_error(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    def _raise_timeout(*_args: object, **_kwargs: object):
+        raise TimeoutError("timeout")
+
+    monkeypatch.setattr("supply_chain_checker.services.llm.openai_client.urlopen", _raise_timeout)
+
+    with pytest.raises(LlmTimeoutError, match="timed out"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
+
+
+def test_openai_client_maps_urlerror_timeout_reason(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    def _raise_timeout(*_args: object, **_kwargs: object):
+        raise URLError(TimeoutError("timeout"))
+
+    monkeypatch.setattr("supply_chain_checker.services.llm.openai_client.urlopen", _raise_timeout)
+
+    with pytest.raises(LlmTimeoutError, match="timed out"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
+
+
+def test_openai_client_maps_urlerror_service_failure(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    def _raise_urlerror(*_args: object, **_kwargs: object):
+        raise URLError("dns failure")
+
+    monkeypatch.setattr("supply_chain_checker.services.llm.openai_client.urlopen", _raise_urlerror)
+
+    with pytest.raises(LlmServiceError, match="service request failed"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
+
+
+def test_openai_client_rejects_invalid_response_shape(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    class _DummyResponse:
+        def read(self) -> bytes:
+            return b'{"choices":[]}'
+
+        def __enter__(self) -> _DummyResponse:
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.urlopen",
+        lambda *_args, **_kwargs: _DummyResponse(),
+    )
+
+    with pytest.raises(LlmResponseError, match="format was invalid"):
+        client.assess_product(
+            prompt="assess prompt",
+            context=LlmRequestContext(run_id="run123", command="assess"),
+        )
+
+
+def test_openai_client_rejects_empty_content_response(
+    monkeypatch, adapter_config: OpenAIAdapterConfig
+) -> None:
+    client = OpenAIClient(config=adapter_config, api_key="test-key")
+
+    class _DummyResponse:
+        def read(self) -> bytes:
+            return b'{"choices":[{"message":{"content":"  "}}]}'
+
+        def __enter__(self) -> _DummyResponse:
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.urlopen",
+        lambda *_args, **_kwargs: _DummyResponse(),
+    )
+
+    with pytest.raises(LlmResponseError, match="empty or not a string"):
+        client.assess_product(
+            prompt="assess prompt",
+            context=LlmRequestContext(run_id="run123", command="assess"),
+        )
+
+
+def test_openai_client_handles_unreachable_retry_exhausted_guard() -> None:
+    config = OpenAIAdapterConfig(
+        model="gpt-4.1-mini",
+        timeout_seconds=5,
+        max_retries=-1,
+        temperature=0.1,
+    )
+    client = OpenAIClient(config=config, extraction_invoker=lambda _prompt: "ok")
+
+    with pytest.raises(LlmServiceError, match="exhausted retries"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
