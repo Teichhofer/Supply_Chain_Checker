@@ -60,7 +60,7 @@ def test_extract_end_to_end_uses_mocked_ocr_and_llm(monkeypatch, tmp_path: Path)
             '"supplier": "ACME", "extraction_status": "confirmed"}]}'
         )
 
-    monkeypatch.setattr(cli, "_read_document_text_placeholder", _direct_extractor)
+    monkeypatch.setattr(cli, "extract_text_with_pypdf", _direct_extractor)
     monkeypatch.setattr(cli, "_run_ocr_placeholder", _ocr_engine)
     monkeypatch.setattr(
         "supply_chain_checker.services.llm.openai_client.OpenAIClient.extract_products",
@@ -188,7 +188,7 @@ def test_run_end_to_end_executes_extract_then_assess(monkeypatch, tmp_path: Path
             }
         )
 
-    monkeypatch.setattr(cli, "_read_document_text_placeholder", _direct_extractor)
+    monkeypatch.setattr(cli, "extract_text_with_pypdf", _direct_extractor)
     monkeypatch.setattr(cli, "_run_ocr_placeholder", _ocr_engine)
     monkeypatch.setattr(
         "supply_chain_checker.services.llm.openai_client.OpenAIClient.extract_products",
@@ -247,7 +247,7 @@ def test_extract_continues_after_llm_failure_for_single_document(
             '"supplier": "ACME", "extraction_status": "confirmed"}]}'
         )
 
-    monkeypatch.setattr(cli, "_read_document_text_placeholder", _direct_extractor)
+    monkeypatch.setattr(cli, "extract_text_with_pypdf", _direct_extractor)
     monkeypatch.setattr(
         "supply_chain_checker.services.llm.openai_client.OpenAIClient.extract_products",
         _mock_extract_products,

@@ -31,6 +31,7 @@ from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrSer
 from supply_chain_checker.services.pdf_reader import (
     PdfProcessingError,
     PdfReader,
+    extract_text_with_pypdf,
 )
 from supply_chain_checker.services.status_service import StatusService
 
@@ -144,7 +145,7 @@ def main() -> int:
 def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
     return ExtractionService(
         pdf_reader=PdfReader(
-            direct_extractor=_read_document_text_placeholder,
+            direct_extractor=extract_text_with_pypdf,
             ocr_service=OcrService(engine=_run_ocr_placeholder),
         ),
         llm_client=OpenAIClient(
