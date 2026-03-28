@@ -20,7 +20,11 @@ def test_recoverable_corrupt_status_file_is_logged_as_warning(tmp_path, caplog) 
         loaded = service.load(on_corrupt_file="fallback_empty")
 
     assert loaded == {}
-    relevant = [record for record in caplog.records if record.__dict__.get("event") == "status.load.corrupt"]
+    relevant = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "status.load.corrupt"
+    ]
     assert len(relevant) == 1
     assert relevant[0].levelno == logging.WARNING
 
@@ -34,7 +38,11 @@ def test_nonrecoverable_corrupt_status_file_is_logged_as_error(tmp_path, caplog)
     with caplog.at_level(logging.ERROR), pytest.raises(StatusTrackingError):
         service.load(on_corrupt_file="abort")
 
-    relevant = [record for record in caplog.records if record.__dict__.get("event") == "status.load.corrupt"]
+    relevant = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "status.load.corrupt"
+    ]
     assert len(relevant) == 1
     assert relevant[0].levelno == logging.ERROR
 
@@ -46,7 +54,7 @@ def test_missing_extraction_csv_is_logged_as_error(tmp_path, caplog) -> None:
     relevant = [
         record
         for record in caplog.records
-        if record.__dict__.get("event") == "csv.extraction.latest.missing"
+        if getattr(record, "event", None) == "csv.extraction.latest.missing"
     ]
     assert len(relevant) == 1
     assert relevant[0].levelno == logging.ERROR
