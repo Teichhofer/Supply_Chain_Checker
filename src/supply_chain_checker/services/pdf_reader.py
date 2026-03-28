@@ -119,3 +119,21 @@ class PdfReader:
 
         alnum_chars = sum(char.isalnum() for char in stripped)
         return (alnum_chars / len(stripped)) >= self._min_alnum_ratio
+
+
+def extract_text_with_pypdf(pdf_path: Path) -> str:
+    """Extract text directly from a machine-readable PDF using pypdf."""
+
+    try:
+        from pypdf import PdfReader as PyPdfReader
+    except ImportError as exc:  # pragma: no cover - dependency boundary
+        raise RuntimeError("Direct PDF extraction requires optional dependency 'pypdf'.") from exc
+
+    reader = PyPdfReader(str(pdf_path))
+    text_chunks: list[str] = []
+    for page in reader.pages:
+        page_text = page.extract_text() or ""
+        if page_text:
+            text_chunks.append(page_text)
+
+    return "\n".join(text_chunks)
