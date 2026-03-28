@@ -180,6 +180,7 @@ def _run_extract_command(
                     command="extract",
                 )
             )
+            status_service.mark_processed_and_persist(pdf_path.name)
         except (PdfProcessingError, OcrProcessingError, LlmClientError, ParsingError) as exc:
             logger.warning(
                 "extraction.document.failed",
@@ -201,8 +202,6 @@ def _run_extract_command(
                     extraction_hint=f"Document processing failed: {type(exc).__name__}",
                 )
             )
-        finally:
-            status_service.mark_processed(pdf_path.name)
 
     if not extracted_products:
         extracted_products.append(

@@ -225,6 +225,24 @@ def test_status_service_raises_when_persist_write_fails(tmp_path, monkeypatch) -
         service.persist()
 
 
+def test_mark_processed_and_persist_rolls_back_when_persist_fails(tmp_path, monkeypatch) -> None:
+    status_path = tmp_path / "processed_files.json"
+    service = StatusService(status_file_path=status_path)
+    service.load()
+    service.mark_processed("invoice_existing.pdf")
+
+    def _raise_persist_error() -> None:
+        raise StatusTrackingError("Could not persist status file.")
+
+    monkeypatch.setattr(service, "persist", _raise_persist_error)
+
+    with pytest.raises(StatusTrackingError, match="Could not persist status file"):
+        service.mark_processed_and_persist("invoice_new.pdf")
+
+    assert "invoice_existing.pdf" in service._entries_by_file
+    assert "invoice_new.pdf" not in service._entries_by_file
+
+
 def test_select_unprocessed_pdfs_returns_sorted_new_pdfs_only(tmp_path) -> None:
     input_dir = tmp_path / "input"
     input_dir.mkdir(parents=True, exist_ok=True)

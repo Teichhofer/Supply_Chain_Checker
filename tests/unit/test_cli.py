@@ -217,6 +217,24 @@ def test_main_reads_and_updates_status_file(monkeypatch, tmp_path: Path) -> None
     input_dir.mkdir(parents=True, exist_ok=True)
     (input_dir / "invoice_a.pdf").write_text("dummy", encoding="utf-8")
 
+    class _FakeExtractionService:
+        def extract_products_from_document(self, **kwargs: object) -> list[ExtractedProduct]:
+            pdf_path = kwargs["pdf_path"]
+            assert isinstance(pdf_path, Path)
+            return [
+                ExtractedProduct(
+                    document_name=pdf_path.name,
+                    product_name="Widget",
+                    quantity="1",
+                    supplier="ACME",
+                    extraction_status="confirmed",
+                    extraction_hint=None,
+                )
+            ]
+
+    monkeypatch.setattr(
+        cli, "_build_extraction_service", lambda **_kwargs: _FakeExtractionService()
+    )
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
     )
@@ -258,6 +276,25 @@ def test_main_skips_already_processed_pdfs(monkeypatch, tmp_path: Path) -> None:
     input_dir.mkdir(parents=True, exist_ok=True)
     (input_dir / "invoice_old.pdf").write_text("dummy", encoding="utf-8")
     (input_dir / "invoice_new.pdf").write_text("dummy", encoding="utf-8")
+
+    class _FakeExtractionService:
+        def extract_products_from_document(self, **kwargs: object) -> list[ExtractedProduct]:
+            pdf_path = kwargs["pdf_path"]
+            assert isinstance(pdf_path, Path)
+            return [
+                ExtractedProduct(
+                    document_name=pdf_path.name,
+                    product_name="Widget",
+                    quantity="1",
+                    supplier="ACME",
+                    extraction_status="confirmed",
+                    extraction_hint=None,
+                )
+            ]
+
+    monkeypatch.setattr(
+        cli, "_build_extraction_service", lambda **_kwargs: _FakeExtractionService()
+    )
 
     state_dir = tmp_path / "data" / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -352,6 +389,55 @@ def test_main_extract_continues_after_single_document_failure(monkeypatch, tmp_p
     assert "uncertain" in csv_payload
     assert "Document processing failed: PdfProcessingError" in csv_payload
     assert "Missing required fields: quantity, supplier" in csv_payload
+
+    status_file = tmp_path / "data" / "state" / "processed_files.json"
+    payload = json.loads(status_file.read_text(encoding="utf-8"))
+    assert [entry["file_name"] for entry in payload["processed_files"]] == ["partial.pdf"]
+
+
+def test_main_extract_persists_status_immediately_after_success(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_a.pdf").write_text("dummy", encoding="utf-8")
+    (input_dir / "invoice_b.pdf").write_text("dummy", encoding="utf-8")
+
+    status_file = tmp_path / "data" / "state" / "processed_files.json"
+
+    class _FakeExtractionService:
+        def extract_products_from_document(self, **kwargs: object) -> list[ExtractedProduct]:
+            pdf_path = kwargs["pdf_path"]
+            assert isinstance(pdf_path, Path)
+
+            if pdf_path.name == "invoice_b.pdf":
+                status_payload = json.loads(status_file.read_text(encoding="utf-8"))
+                assert [entry["file_name"] for entry in status_payload["processed_files"]] == [
+                    "invoice_a.pdf"
+                ]
+
+            return [
+                ExtractedProduct(
+                    document_name=pdf_path.name,
+                    product_name="Widget",
+                    quantity="1",
+                    supplier="ACME",
+                    extraction_status="confirmed",
+                    extraction_hint=None,
+                )
+            ]
+
+    monkeypatch.setattr(
+        cli, "_build_extraction_service", lambda **_kwargs: _FakeExtractionService()
+    )
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
 
 
 def test_main_assess_marks_unprocessed_pdfs_as_processed(monkeypatch, tmp_path: Path) -> None:
