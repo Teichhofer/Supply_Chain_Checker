@@ -1,4 +1,4 @@
-.PHONY: format format-check lint type test check
+.PHONY: format format-check lint type test coverage check
 
 format:
 	python -m black src tests
@@ -17,4 +17,7 @@ type:
 test:
 	python -m pytest
 
-check: format-check lint type test
+check: format-check lint type test coverage
+
+coverage:
+	python -m pytest --cov=src/supply_chain_checker --cov-report=term-missing

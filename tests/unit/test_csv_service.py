@@ -161,3 +161,23 @@ def test_write_assessment_results_csv_wraps_io_errors(tmp_path, monkeypatch) -> 
 
     with pytest.raises(StorageIOError, match="Could not write assessment CSV"):
         write_assessment_results_csv(output_dir=tmp_path, run_context=context, results=[result])
+
+
+def test_select_latest_extraction_csv_breaks_ties_by_filename(tmp_path) -> None:
+    first = tmp_path / "extraction_20260327T120000Z_arun.csv"
+    second = tmp_path / "extraction_20260327T120000Z_zrun.csv"
+    first.write_text("a", encoding="utf-8")
+    second.write_text("z", encoding="utf-8")
+
+    selected = select_latest_extraction_csv(output_dir=tmp_path)
+
+    assert selected == second
+
+
+def test_select_latest_extraction_csv_ignores_files_with_invalid_pattern(tmp_path) -> None:
+    (tmp_path / "extraction_2026-03-27T120000Z_bad.csv").write_text("bad", encoding="utf-8")
+    (tmp_path / "extraction_20260327T120000_run.csv").write_text("bad", encoding="utf-8")
+    (tmp_path / "extraction_20260327T120000Z.csv").write_text("bad", encoding="utf-8")
+
+    with pytest.raises(StorageIOError, match="Run 'extract' first"):
+        select_latest_extraction_csv(output_dir=tmp_path)
