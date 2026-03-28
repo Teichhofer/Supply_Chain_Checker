@@ -13,6 +13,21 @@ import yaml  # type: ignore[import-untyped]
 logger = logging.getLogger(__name__)
 
 _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR"}
+_ALLOWED_ON_CORRUPT_STATUS_FILE = {"abort", "fallback_empty"}
+
+_SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
+    "__root__": {"paths", "logging", "llm", "prompts", "parameters"},
+    "paths": {"input_dir", "output_dir", "state_dir", "logs_dir"},
+    "logging": {"level", "file_name"},
+    "llm": {"provider", "model", "timeout_seconds", "max_retries", "temperature"},
+    "prompts": {"extraction", "assessment"},
+    "parameters": {
+        "use_ocr_fallback",
+        "max_products_per_document",
+        "max_assessment_reason_words",
+        "on_corrupt_status_file",
+    },
+}
 
 
 class ConfigurationError(Exception):
@@ -93,14 +108,16 @@ def load_config(config_path: str | Path) -> AppConfig:
     if not isinstance(raw_config, dict):
         raise ConfigurationError("Top-level YAML structure must be a mapping.")
 
+    _validate_schema(raw_config)
+
     paths_section = _mapping(raw_config.get("paths"), section_name="paths")
-    logging_section = _mapping(raw_config.get("logging", {}), section_name="logging")
+    logging_section = _mapping(raw_config.get("logging"), section_name="logging")
     llm_section = _mapping(raw_config.get("llm"), section_name="llm")
-    prompts_section = _mapping(raw_config.get("prompts", {}), section_name="prompts")
-    parameters_section = _mapping(raw_config.get("parameters", {}), section_name="parameters")
+    prompts_section = _mapping(raw_config.get("prompts"), section_name="prompts")
+    parameters_section = _mapping(raw_config.get("parameters"), section_name="parameters")
 
     level = _string(
-        logging_section.get("level", "INFO"),
+        logging_section["level"],
         "logging.level",
     ).upper()
     if level not in _VALID_LOG_LEVELS:
@@ -109,75 +126,66 @@ def load_config(config_path: str | Path) -> AppConfig:
         )
 
     file_name = _string(
-        logging_section.get("file_name", "supply_chain_checker.log"),
+        logging_section["file_name"],
         "logging.file_name",
     )
 
-    provider = _required_string(llm_section, key="provider", section_name="llm")
-    model = _required_string(llm_section, key="model", section_name="llm")
+    provider = _string(llm_section["provider"], "llm.provider")
+    model = _string(llm_section["model"], "llm.model")
 
-    timeout_seconds = _int(llm_section.get("timeout_seconds", 30), "llm.timeout_seconds", minimum=1)
-    max_retries = _int(llm_section.get("max_retries", 2), "llm.max_retries", minimum=0)
+    timeout_seconds = _int(llm_section["timeout_seconds"], "llm.timeout_seconds", minimum=1)
+    max_retries = _int(llm_section["max_retries"], "llm.max_retries", minimum=0)
     temperature = _float(
-        llm_section.get("temperature", 0.0),
+        llm_section["temperature"],
         "llm.temperature",
         minimum=0.0,
         maximum=2.0,
     )
 
     extraction_prompt = _string(
-        prompts_section.get(
-            "extraction",
-            "Extract all products from the provided document text and respond as JSON.",
-        ),
+        prompts_section["extraction"],
         "prompts.extraction",
     )
     assessment_prompt = _string(
-        prompts_section.get(
-            "assessment",
-            "Assess supply-chain risk for {product_name} and respond as JSON.",
-        ),
+        prompts_section["assessment"],
         "prompts.assessment",
     )
 
     use_ocr_fallback = _bool(
-        parameters_section.get("use_ocr_fallback", True), "parameters.use_ocr_fallback"
+        parameters_section["use_ocr_fallback"], "parameters.use_ocr_fallback"
     )
     max_products_per_document = _int(
-        parameters_section.get("max_products_per_document", 100),
+        parameters_section["max_products_per_document"],
         "parameters.max_products_per_document",
         minimum=1,
     )
     max_assessment_reason_words = _int(
-        parameters_section.get("max_assessment_reason_words", 100),
+        parameters_section["max_assessment_reason_words"],
         "parameters.max_assessment_reason_words",
         minimum=1,
     )
     on_corrupt_status_file_raw = _string(
-        parameters_section.get("on_corrupt_status_file", "abort"),
+        parameters_section["on_corrupt_status_file"],
         "parameters.on_corrupt_status_file",
     ).lower()
-    if on_corrupt_status_file_raw == "abort":
-        on_corrupt_status_file: Literal["abort", "fallback_empty"] = "abort"
-    elif on_corrupt_status_file_raw == "fallback_empty":
-        on_corrupt_status_file = "fallback_empty"
-    else:
+    if on_corrupt_status_file_raw not in _ALLOWED_ON_CORRUPT_STATUS_FILE:
         raise ConfigurationError(
             "Field 'parameters.on_corrupt_status_file' must be one of: abort, fallback_empty."
         )
+    on_corrupt_status_file: Literal["abort", "fallback_empty"] = on_corrupt_status_file_raw
 
     return AppConfig(
         paths=PathsConfig(
             input_dir=Path(
-                _string(paths_section.get("input_dir", "data/input"), "paths.input_dir")
+                _string(paths_section["input_dir"], "paths.input_dir")
             ),
             output_dir=Path(
-                _string(paths_section.get("output_dir", "data/output"), "paths.output_dir")
+                _string(paths_section["output_dir"], "paths.output_dir")
             ),
             state_dir=Path(
-                _string(paths_section.get("state_dir", "data/state"), "paths.state_dir")
+                _string(paths_section["state_dir"], "paths.state_dir")
             ),
-            logs_dir=Path(_string(paths_section.get("logs_dir", "logs"), "paths.logs_dir")),
+            logs_dir=Path(_string(paths_section["logs_dir"], "paths.logs_dir")),
         ),
         logging=LoggingConfig(level=level, file_name=file_name),
         llm=LlmConfig(
@@ -205,10 +213,45 @@ def _mapping(value: Any, *, section_name: str) -> dict[str, Any]:
     return value
 
 
-def _required_string(section: dict[str, Any], *, key: str, section_name: str) -> str:
-    if key not in section:
-        raise ConfigurationError(f"Missing required field '{section_name}.{key}'.")
-    return _string(section[key], f"{section_name}.{key}")
+def _validate_schema(raw_config: dict[str, Any]) -> None:
+    _require_fields(raw_config, _SCHEMA_REQUIRED_FIELDS["__root__"], section_name="root")
+    _reject_unknown_fields(raw_config, _SCHEMA_REQUIRED_FIELDS["__root__"], section_name="root")
+
+    for section_name in ("paths", "logging", "llm", "prompts", "parameters"):
+        section = _mapping(raw_config.get(section_name), section_name=section_name)
+        required_fields = _SCHEMA_REQUIRED_FIELDS[section_name]
+        _require_fields(section, required_fields, section_name=section_name)
+        _reject_unknown_fields(section, required_fields, section_name=section_name)
+
+
+def _require_fields(
+    section: dict[str, Any], required_fields: set[str], *, section_name: str
+) -> None:
+    missing_fields = sorted(required_fields.difference(section.keys()))
+    if not missing_fields:
+        return
+
+    if section_name == "root":
+        qualified_missing = [f"'{field}'" for field in missing_fields]
+    else:
+        qualified_missing = [f"'{section_name}.{field}'" for field in missing_fields]
+    missing_fields_text = ", ".join(qualified_missing)
+    raise ConfigurationError(f"Missing required field(s): {missing_fields_text}.")
+
+
+def _reject_unknown_fields(
+    section: dict[str, Any], allowed_fields: set[str], *, section_name: str
+) -> None:
+    unknown_fields = sorted(set(section.keys()).difference(allowed_fields))
+    if not unknown_fields:
+        return
+
+    if section_name == "root":
+        qualified_unknown = [f"'{field}'" for field in unknown_fields]
+    else:
+        qualified_unknown = [f"'{section_name}.{field}'" for field in unknown_fields]
+    unknown_fields_text = ", ".join(qualified_unknown)
+    raise ConfigurationError(f"Unknown field(s) not allowed: {unknown_fields_text}.")
 
 
 def _string(value: Any, field_name: str) -> str:

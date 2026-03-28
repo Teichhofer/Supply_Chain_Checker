@@ -21,8 +21,14 @@ logging:
 llm:
   provider: openai
   model: gpt-4.1-mini
+  timeout_seconds: 30
+  max_retries: 2
+  temperature: 0.0
 parameters:
   use_ocr_fallback: true
+  max_products_per_document: 100
+  max_assessment_reason_words: 100
+  on_corrupt_status_file: abort
 prompts:
   extraction: "Extract from {document_name}: {document_text}"
   assessment: "Assess {product_name} from {supplier}"

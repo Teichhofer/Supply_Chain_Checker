@@ -9,12 +9,27 @@ def test_module_main_executes(monkeypatch, capsys, tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "paths:\n"
+        "  input_dir: data/input\n"
+        "  output_dir: data/output\n"
+        "  state_dir: data/state\n"
         "  logs_dir: logs\n"
         "logging:\n"
         "  level: INFO\n"
+        "  file_name: app.log\n"
         "llm:\n"
         "  provider: openai\n"
-        "  model: gpt-4.1-mini\n",
+        "  model: gpt-4.1-mini\n"
+        "  timeout_seconds: 30\n"
+        "  max_retries: 2\n"
+        "  temperature: 0.0\n"
+        "prompts:\n"
+        "  extraction: \"Extract from {document_name}: {document_text}\"\n"
+        "  assessment: \"Assess {product_name}\"\n"
+        "parameters:\n"
+        "  use_ocr_fallback: true\n"
+        "  max_products_per_document: 100\n"
+        "  max_assessment_reason_words: 100\n"
+        "  on_corrupt_status_file: abort\n",
         encoding="utf-8",
     )
 
