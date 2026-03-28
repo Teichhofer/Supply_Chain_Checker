@@ -257,8 +257,10 @@ def test_select_unprocessed_pdfs_logs_processed_skip_count(tmp_path, caplog) -> 
         selected = service.select_unprocessed_pdfs(input_dir)
 
     assert [path.name for path in selected] == ["invoice_b.pdf"]
-    selection_logs = [record for record in caplog.records if record.msg == "status.selection.completed"]
+    selection_logs = [
+        record for record in caplog.records if record.msg == "status.selection.completed"
+    ]
     assert len(selection_logs) == 1
-    assert selection_logs[0].__dict__["discovered_pdf_count"] == 2
-    assert selection_logs[0].__dict__["selected_pdf_count"] == 1
-    assert selection_logs[0].__dict__["skipped_processed_count"] == 1
+    assert selection_logs[0].discovered_pdf_count == 2
+    assert selection_logs[0].selected_pdf_count == 1
+    assert selection_logs[0].skipped_processed_count == 1
