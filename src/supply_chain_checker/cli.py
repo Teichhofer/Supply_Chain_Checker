@@ -285,7 +285,7 @@ def _print_assessment_console_results(*, results: list[ProductAssessmentResult])
 
 
 def _read_document_text_placeholder(pdf_path: Path) -> str:
-    return pdf_path.read_text(encoding="utf-8")
+    raise RuntimeError(f"PDF text reader is not configured for '{pdf_path.name}'.")
 
 
 def _run_ocr_placeholder(pdf_path: Path) -> str:
