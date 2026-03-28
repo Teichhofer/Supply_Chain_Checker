@@ -9,7 +9,11 @@ from typing import Literal
 
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.parsers import ParsedAssessment, ParsingError, parse_assessment_response
-from supply_chain_checker.services.llm import LlmGateway, LlmRequestContext
+from supply_chain_checker.services.llm import (
+    LlmGateway,
+    LlmRequestContext,
+    build_assessment_prompt,
+)
 from supply_chain_checker.services.llm.base import LlmClientError
 
 logger = logging.getLogger(__name__)
@@ -41,7 +45,7 @@ class AssessmentService:
         max_reason_words: int = 100,
     ) -> None:
         self._llm_client = llm_client
-        self._prompt_builder = prompt_builder or _build_assessment_prompt
+        self._prompt_builder = prompt_builder or build_assessment_prompt
         self._max_reason_words = max_reason_words
 
     def assess_products(
@@ -165,20 +169,6 @@ class AssessmentService:
             )
 
         return results
-
-
-def _build_assessment_prompt(*, template: str, product: ExtractedProduct) -> str:
-    return template.format(
-        product_name=product.product_name,
-        supplier=product.supplier,
-        quantity=product.quantity,
-        manufacturer=product.manufacturer or "",
-        article_number=product.article_number or "",
-        document_name=product.document_name,
-        extraction_status=product.extraction_status,
-        extraction_hint=product.extraction_hint or "",
-    )
-
 
 def _determine_skip_reason(product: ExtractedProduct) -> str | None:
     if product.extraction_status != "confirmed":
