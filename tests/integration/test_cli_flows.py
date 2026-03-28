@@ -221,7 +221,9 @@ def test_run_end_to_end_executes_extract_then_assess(monkeypatch, tmp_path: Path
     assert "assessment.succeeded" in log_content
 
 
-def test_extract_continues_after_llm_failure_for_single_document(monkeypatch, tmp_path: Path) -> None:
+def test_extract_continues_after_llm_failure_for_single_document(
+    monkeypatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"
