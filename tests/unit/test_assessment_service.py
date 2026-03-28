@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.services.assessment_service import AssessmentService
 from supply_chain_checker.services.llm.base import LlmClientError, LlmRequestContext
@@ -149,3 +151,34 @@ def test_assess_products_skips_products_with_missing_required_fields() -> None:
     assert len(results) == 1
     assert results[0].assessment_status == "skipped"
     assert results[0].skip_reason == "MISSING_QUANTITY"
+
+
+@pytest.mark.parametrize(
+    ("product_name", "supplier", "expected_reason"),
+    [
+        ("UNKNOWN", "ACME", "MISSING_PRODUCT_NAME"),
+        ("Bolt", "N/A", "MISSING_SUPPLIER"),
+    ],
+)
+def test_assess_products_skips_when_product_or_supplier_is_missing(
+    product_name: str, supplier: str, expected_reason: str
+) -> None:
+    product = ExtractedProduct(
+        document_name="a.pdf",
+        product_name=product_name,
+        quantity="10",
+        supplier=supplier,
+        extraction_status="confirmed",
+    )
+    llm_client = RecordingAssessmentClient()
+    service = AssessmentService(llm_client=llm_client)
+
+    results = service.assess_products(
+        products=[product],
+        assessment_prompt_template="Assess {product_name}",
+    )
+
+    assert llm_client.prompts == []
+    assert len(results) == 1
+    assert results[0].assessment_status == "skipped"
+    assert results[0].skip_reason == expected_reason

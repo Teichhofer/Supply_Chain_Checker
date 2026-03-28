@@ -122,3 +122,42 @@ def test_write_assessment_results_csv_keeps_skipped_products_and_skip_reason(tmp
     assert len(rows) == 1
     assert rows[0]["bewertungsstatus"] == "skipped"
     assert rows[0]["skip_reason"] == "UNCONFIRMED_EXTRACTION"
+
+
+def test_read_extraction_products_csv_wraps_io_errors(tmp_path, monkeypatch) -> None:
+    csv_path = tmp_path / "extraction_20260327T120000Z_run123.csv"
+    csv_path.write_text("run_id\n", encoding="utf-8")
+
+    def _raise_oserror(*_args, **_kwargs):
+        raise OSError("boom")
+
+    monkeypatch.setattr(type(csv_path), "open", _raise_oserror)
+
+    with pytest.raises(StorageIOError, match="Could not read extraction CSV"):
+        read_extraction_products_csv(csv_path=csv_path)
+
+
+def test_write_assessment_results_csv_wraps_io_errors(tmp_path, monkeypatch) -> None:
+    context = RunContext(
+        run_id="runid1234567",
+        started_at_utc=datetime(2026, 3, 27, 12, 0, tzinfo=UTC),
+    )
+
+    result = ProductAssessmentResult(
+        product=ExtractedProduct(
+            document_name="invoice.pdf",
+            product_name="Bolt",
+            quantity="5",
+            supplier="ACME",
+        ),
+        assessment_status="assessed",
+        raw_response='{"ok": true}',
+    )
+
+    def _raise_oserror(*_args, **_kwargs):
+        raise OSError("write boom")
+
+    monkeypatch.setattr("pathlib.Path.open", _raise_oserror)
+
+    with pytest.raises(StorageIOError, match="Could not write assessment CSV"):
+        write_assessment_results_csv(output_dir=tmp_path, run_context=context, results=[result])

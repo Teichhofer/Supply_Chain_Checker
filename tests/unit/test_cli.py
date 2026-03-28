@@ -433,3 +433,11 @@ def test_main_assess_writes_new_csv_for_each_run(monkeypatch, tmp_path: Path) ->
     assessment_files = list(output_dir.glob("assessment_*.csv"))
     assert len(assessment_files) == 2
     assert assessment_files[0].name != assessment_files[1].name
+
+
+def test_print_assessment_console_results_handles_empty_results(capsys) -> None:
+    cli._print_assessment_console_results(results=[])
+
+    output = capsys.readouterr().out
+    assert "Assessment results" in output
+    assert "- keine Produkte vorhanden" in output

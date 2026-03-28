@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from supply_chain_checker.parsers import ParsingError, parse_assessment_response
+from supply_chain_checker.parsers.assessment_response_parser import _parse_price_change_percent
 
 
 def test_parse_assessment_response_validates_and_normalizes_required_fields() -> None:
@@ -63,4 +64,76 @@ def test_parse_assessment_response_rejects_non_finite_price_change(price_change:
                 f'"preisänderung_prozent": {price_change}, '
                 '"begründung": "ok"}'
             )
+        )
+
+
+def test_parse_assessment_response_rejects_invalid_json() -> None:
+    with pytest.raises(ParsingError, match="not valid JSON"):
+        parse_assessment_response(response_text="{invalid")
+
+
+def test_parse_assessment_response_rejects_non_object_payload() -> None:
+    with pytest.raises(ParsingError, match="must be an object"):
+        parse_assessment_response(response_text='["not-an-object"]')
+
+
+def test_parse_assessment_response_supports_nested_bewertung_payload() -> None:
+    parsed = parse_assessment_response(
+        response_text=(
+            '{"bewertung":{"risikostufe":"6","preisänderung_prozent":"2,0","begründung":"passt"}}'
+        )
+    )
+
+    assert parsed.risk_level == 6
+    assert parsed.price_change_percent == 2.0
+    assert parsed.reason == "passt"
+
+
+@pytest.mark.parametrize(
+    "risk_value",
+    ['""', '"abc"', "2.5", "true", "{}", "2.5e1"],
+)
+def test_parse_assessment_response_rejects_invalid_risk_types(risk_value: str) -> None:
+    with pytest.raises(ParsingError, match="risikostufe"):
+        parse_assessment_response(
+            response_text=(
+                "{"
+                f'"risikostufe": {risk_value}, '
+                '"preisänderung_prozent": 1.5, '
+                '"begründung": "ok"'
+                "}"
+            )
+        )
+
+
+def test_parse_assessment_response_rejects_blank_price_change_string() -> None:
+    with pytest.raises(ParsingError, match="preisänderung_prozent"):
+        parse_assessment_response(
+            response_text='{"risikostufe": 3, "preisänderung_prozent": "   ", "begründung": "ok"}'
+        )
+
+
+def test_parse_assessment_response_rejects_boolean_price_change() -> None:
+    with pytest.raises(ParsingError, match="must be numeric"):
+        parse_assessment_response(
+            response_text='{"risikostufe": 3, "preisänderung_prozent": true, "begründung": "ok"}'
+        )
+
+
+def test_parse_assessment_response_rejects_non_finite_numeric_price_change() -> None:
+    with pytest.raises(ParsingError, match="must be finite"):
+        _parse_price_change_percent(float("nan"))
+
+
+def test_parse_assessment_response_rejects_non_numeric_price_change_type() -> None:
+    with pytest.raises(ParsingError, match="must be numeric"):
+        parse_assessment_response(
+            response_text='{"risikostufe": 3, "preisänderung_prozent": {}, "begründung": "ok"}'
+        )
+
+
+def test_parse_assessment_response_rejects_blank_reason() -> None:
+    with pytest.raises(ParsingError, match="non-empty string"):
+        parse_assessment_response(
+            response_text='{"risikostufe": 3, "preisänderung_prozent": 1.5, "begründung": "   "}'
         )
