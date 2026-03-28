@@ -163,6 +163,21 @@ class StatusService:
             file_hash=file_hash,
         )
 
+    def mark_processed_and_persist(self, file_name: str, *, file_hash: str | None = None) -> None:
+        """Persist a processed-file marker immediately after successful processing."""
+
+        had_previous_entry = file_name in self._entries_by_file
+        previous_entry = self._entries_by_file.get(file_name)
+        self.mark_processed(file_name, file_hash=file_hash)
+        try:
+            self.persist()
+        except StatusTrackingError:
+            if had_previous_entry and previous_entry is not None:
+                self._entries_by_file[file_name] = previous_entry
+            else:
+                self._entries_by_file.pop(file_name, None)
+            raise
+
     def persist(self) -> None:
         """Write the in-memory status entries to disk."""
 
