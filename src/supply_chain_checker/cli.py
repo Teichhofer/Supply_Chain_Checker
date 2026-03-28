@@ -26,7 +26,7 @@ from supply_chain_checker.services.extraction_service import (
     LlmClientError,
     ParsingError,
 )
-from supply_chain_checker.services.llm.openai_client import OpenAIClient
+from supply_chain_checker.services.llm.openai_client import OpenAIAdapterConfig, OpenAIClient
 from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
 from supply_chain_checker.services.pdf_reader import PdfProcessingError, PdfReader
 from supply_chain_checker.services.status_service import StatusService
@@ -128,15 +128,19 @@ def main() -> int:
     return 0
 
 
-def _build_extraction_service() -> ExtractionService:
+def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
     return ExtractionService(
         pdf_reader=PdfReader(
             direct_extractor=_read_document_text_placeholder,
             ocr_service=OcrService(engine=_run_ocr_placeholder),
         ),
         llm_client=OpenAIClient(
-            extraction_invoker=_invoke_extraction_llm_placeholder,
-            assessment_invoker=_invoke_assessment_llm_placeholder,
+            config=OpenAIAdapterConfig(
+                model=config.llm.model,
+                timeout_seconds=config.llm.timeout_seconds,
+                max_retries=config.llm.max_retries,
+                temperature=config.llm.temperature,
+            ),
         ),
     )
 
@@ -148,7 +152,7 @@ def _run_extract_command(
     run_context: RunContext,
     status_service: StatusService,
 ) -> Path:
-    extraction_service = _build_extraction_service()
+    extraction_service = _build_extraction_service(config=config)
     extracted_products: list[ExtractedProduct] = []
 
     for pdf_path in status_service.select_unprocessed_pdfs(config.paths.input_dir):
@@ -219,7 +223,8 @@ def _run_assess_command(*, config: AppConfig, run_context: RunContext) -> Path:
     )
     products = read_extraction_products_csv(csv_path=latest_extraction_csv)
     assessment_service = _build_assessment_service(
-        max_reason_words=config.parameters.max_assessment_reason_words
+        config=config,
+        max_reason_words=config.parameters.max_assessment_reason_words,
     )
     results = assessment_service.assess_products(
         products=products,
@@ -281,11 +286,15 @@ def _invoke_extraction_llm_placeholder(_prompt: str) -> str:
     raise RuntimeError("LLM provider invocation is not configured.")
 
 
-def _build_assessment_service(*, max_reason_words: int) -> AssessmentService:
+def _build_assessment_service(*, config: AppConfig, max_reason_words: int) -> AssessmentService:
     return AssessmentService(
         llm_client=OpenAIClient(
-            extraction_invoker=_invoke_extraction_llm_placeholder,
-            assessment_invoker=_invoke_assessment_llm_placeholder,
+            config=OpenAIAdapterConfig(
+                model=config.llm.model,
+                timeout_seconds=config.llm.timeout_seconds,
+                max_retries=config.llm.max_retries,
+                temperature=config.llm.temperature,
+            ),
         ),
         max_reason_words=max_reason_words,
     )

@@ -279,7 +279,9 @@ def test_main_extract_continues_after_single_document_failure(monkeypatch, tmp_p
                 )
             ]
 
-    monkeypatch.setattr(cli, "_build_extraction_service", lambda: _FakeExtractionService())
+    monkeypatch.setattr(
+        cli, "_build_extraction_service", lambda **_kwargs: _FakeExtractionService()
+    )
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
     )
