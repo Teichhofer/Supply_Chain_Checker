@@ -1,7 +1,8 @@
 # Beispielkonfiguration für Supply Chain Checker (V1)
 # Nutzung:
 #   cp config/config.example.yaml config/config.yaml
-#   export OPENAI_API_KEY="<dein_api_key>"
+#   cp config/secrets.example.env config/secrets.env
+#   source config/secrets.env
 
 paths:
   # Eingangsordner für neue PDFs

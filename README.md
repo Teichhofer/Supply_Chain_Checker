@@ -77,12 +77,13 @@ Nutze die Beispielkonfiguration als Startpunkt:
 
 ```bash
 cp config/config.example.yaml config/config.yaml
+cp config/secrets.example.env config/secrets.env
 ```
 
-Danach (falls noch nicht gesetzt) API Key exportieren:
+Danach Secrets laden (enthält u. a. den API Key):
 
 ```bash
-export OPENAI_API_KEY="<dein_api_key>"
+source config/secrets.env
 ```
 
 ### Bedeutung der Verzeichnisse
@@ -125,9 +126,10 @@ python -m supply_chain_checker assess --config config/config.yaml
    ```bash
    cp config/config.example.yaml config/config.yaml
    ```
-3. API Key setzen:
+3. Secrets-Datei anlegen und laden:
    ```bash
-   export OPENAI_API_KEY="<dein_api_key>"
+   cp config/secrets.example.env config/secrets.env
+   source config/secrets.env
    ```
 4. Test-PDF(s) nach `data/input` legen.
 5. Extraktion starten:
