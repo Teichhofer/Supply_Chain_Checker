@@ -37,3 +37,15 @@ def test_setup_logging_respects_warning_level(tmp_path) -> None:
     content = log_file.read_text(encoding="utf-8")
     assert "should_not_be_logged" not in content
     assert "should_be_logged" in content
+
+
+def test_setup_logging_closes_previous_file_handlers(tmp_path) -> None:
+    setup_logging(logs_dir=tmp_path, level="INFO", run_id="run-123", file_name="first.log")
+    previous_handlers = list(logging.getLogger().handlers)
+
+    setup_logging(logs_dir=tmp_path, level="INFO", run_id="run-456", file_name="second.log")
+
+    previous_file_handlers = [handler for handler in previous_handlers if isinstance(handler, logging.FileHandler)]
+    assert previous_file_handlers
+    for handler in previous_file_handlers:
+        assert handler.stream is None
