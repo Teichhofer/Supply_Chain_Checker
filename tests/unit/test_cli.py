@@ -16,6 +16,9 @@ from supply_chain_checker.services.status_service import StatusTrackingError
 
 _MINIMAL_CONFIG = """
 paths:
+  input_dir: data/input
+  output_dir: data/output
+  state_dir: data/state
   logs_dir: logs
 logging:
   level: INFO
@@ -23,10 +26,24 @@ logging:
 llm:
   provider: openai
   model: gpt-4.1-mini
+  timeout_seconds: 30
+  max_retries: 2
+  temperature: 0.0
+prompts:
+  extraction: "Extract from {document_name}: {document_text}"
+  assessment: "Assess {product_name} from {supplier}"
+parameters:
+  use_ocr_fallback: true
+  max_products_per_document: 100
+  max_assessment_reason_words: 100
+  on_corrupt_status_file: abort
 """
 
 _FALLBACK_STATUS_CONFIG = """
 paths:
+  input_dir: data/input
+  output_dir: data/output
+  state_dir: data/state
   logs_dir: logs
 logging:
   level: INFO
@@ -34,7 +51,16 @@ logging:
 llm:
   provider: openai
   model: gpt-4.1-mini
+  timeout_seconds: 30
+  max_retries: 2
+  temperature: 0.0
+prompts:
+  extraction: "Extract from {document_name}: {document_text}"
+  assessment: "Assess {product_name} from {supplier}"
 parameters:
+  use_ocr_fallback: true
+  max_products_per_document: 100
+  max_assessment_reason_words: 100
   on_corrupt_status_file: fallback_empty
 """
 
