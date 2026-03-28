@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from supply_chain_checker.parsers import ParsingError, parse_extraction_response
@@ -38,6 +40,20 @@ def test_parser_marks_incomplete_product_as_uncertain_instead_of_dropping() -> N
 def test_parser_raises_controlled_error_for_invalid_json() -> None:
     with pytest.raises(ParsingError, match="not valid JSON"):
         parse_extraction_response(response_text="not json", document_name="doc.pdf")
+
+
+def test_parser_logs_parsing_error_with_error_type(caplog) -> None:
+    with caplog.at_level(logging.WARNING), pytest.raises(ParsingError):
+        parse_extraction_response(response_text="not json", document_name="doc.pdf")
+
+    relevant = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "extraction.parsing.failed"
+    ]
+    assert len(relevant) == 1
+    assert relevant[0].error_type == "ParsingError"
+    assert relevant[0].document_name == "doc.pdf"
 
 
 def test_parser_raises_controlled_error_for_invalid_status_value() -> None:

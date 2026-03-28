@@ -24,23 +24,41 @@ def parse_extraction_response(*, response_text: str, document_name: str) -> list
     try:
         payload = json.loads(response_text)
     except json.JSONDecodeError as exc:
+        _log_parsing_failure(
+            message="LLM extraction response is not valid JSON.",
+            document_name=document_name,
+        )
         raise ParsingError("LLM extraction response is not valid JSON.") from exc
 
-    raw_products = _extract_products(payload)
+    raw_products = _extract_products(payload, document_name=document_name)
     parsed_products: list[ExtractedProduct] = []
     for index, raw_product in enumerate(raw_products):
         if not isinstance(raw_product, dict):
+            _log_parsing_failure(
+                message=f"Product entry at index {index} must be an object.",
+                document_name=document_name,
+            )
             raise ParsingError(f"Product entry at index {index} must be an object.")
-        parsed_products.append(_parse_product(raw_product=raw_product, document_name=document_name))
+        try:
+            parsed_products.append(
+                _parse_product(raw_product=raw_product, document_name=document_name)
+            )
+        except ParsingError as exc:
+            _log_parsing_failure(message=str(exc), document_name=document_name)
+            raise
 
     return parsed_products
 
 
-def _extract_products(payload: Any) -> list[Any]:
+def _extract_products(payload: Any, *, document_name: str) -> list[Any]:
     if isinstance(payload, list):
         return payload
     if isinstance(payload, dict) and isinstance(payload.get("products"), list):
         return cast(list[Any], payload["products"])
+    _log_parsing_failure(
+        message="LLM extraction response must be a list or an object containing 'products'.",
+        document_name=document_name,
+    )
     raise ParsingError("LLM extraction response must be a list or an object containing 'products'.")
 
 
@@ -97,3 +115,15 @@ def _normalized_text(value: Any) -> str | None:
 
 def _optional_text(value: Any) -> str | None:
     return _normalized_text(value)
+
+
+def _log_parsing_failure(*, message: str, document_name: str) -> None:
+    logger.warning(
+        "extraction.parsing.failed",
+        extra={
+            "event": "extraction.parsing.failed",
+            "document_name": document_name,
+            "error_type": ParsingError.__name__,
+            "error_message": message,
+        },
+    )

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from supply_chain_checker import cli
-from supply_chain_checker.services.llm.base import LlmRequestContext
+from supply_chain_checker.services.llm.base import LlmClientError, LlmRequestContext
 
 _MINIMAL_CONFIG = """
 paths:
@@ -219,3 +219,52 @@ def test_run_end_to_end_executes_extract_then_assess(monkeypatch, tmp_path: Path
     log_content = (tmp_path / "logs" / "app.log").read_text(encoding="utf-8")
     assert "command.received" in log_content
     assert "assessment.succeeded" in log_content
+
+
+def test_extract_continues_after_llm_failure_for_single_document(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_fail.pdf").write_text("raw-bytes", encoding="utf-8")
+    (input_dir / "invoice_ok.pdf").write_text("raw-bytes", encoding="utf-8")
+
+    def _direct_extractor(pdf_path: Path) -> str:
+        return f"Text for {pdf_path.name}"
+
+    def _mock_extract_products(self, *, prompt: str, context: LlmRequestContext) -> str:
+        assert context.command == "extract"
+        if "invoice_fail.pdf" in prompt:
+            raise LlmClientError("provider unreachable")
+        return (
+            '{"products": ['
+            '{"product_name": "Widget A", "quantity": "10", '
+            '"supplier": "ACME", "extraction_status": "confirmed"}]}'
+        )
+
+    monkeypatch.setattr(cli, "_read_document_text_placeholder", _direct_extractor)
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.OpenAIClient.extract_products",
+        _mock_extract_products,
+    )
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+
+    extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    assert len(extraction_files) == 1
+
+    with extraction_files[0].open("r", encoding="utf-8", newline="") as csv_file:
+        rows = list(csv.DictReader(csv_file))
+
+    assert len(rows) == 2
+    failed_row = next(row for row in rows if row["document_name"] == "invoice_fail.pdf")
+    success_row = next(row for row in rows if row["document_name"] == "invoice_ok.pdf")
+    assert failed_row["extraction_status"] == "uncertain"
+    assert failed_row["extraction_hint"] == "Document processing failed: LlmClientError"
+    assert success_row["product_name"] == "Widget A"
