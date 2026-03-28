@@ -39,14 +39,16 @@ parameters:
 """
 
 
-def test_build_parser_supports_extract_and_assess() -> None:
+def test_build_parser_supports_extract_assess_and_run() -> None:
     parser = cli._build_parser()
 
     extract_args = parser.parse_args(["extract", "--config", "config/config.yaml"])
     assess_args = parser.parse_args(["assess", "--config", "config/config.yaml"])
+    run_args = parser.parse_args(["run", "--config", "config/config.yaml"])
 
     assert extract_args.command == "extract"
     assert assess_args.command == "assess"
+    assert run_args.command == "run"
 
 
 def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -104,6 +106,33 @@ def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: 
     assert "run.started" in log_content
     assert "run.finished" in log_content
 
+
+
+
+def test_main_run_executes_extract_then_assess(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    output_dir = tmp_path / "data" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "extraction_20260327T100000Z_olderrun1234.csv").write_text(
+        "run_id\nold\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "run", "--config", str(config_file)]
+    )
+    assert cli.main() == 0
+
+    extract_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    assess_files = list((tmp_path / "data" / "output").glob("assessment_*.csv"))
+
+    assert len(extract_files) >= 1
+    assert len(assess_files) == 1
+    assert all(extract_file.name != assess_files[0].name for extract_file in extract_files)
 
 def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)

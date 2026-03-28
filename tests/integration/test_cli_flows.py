@@ -144,3 +144,72 @@ def test_assess_end_to_end_from_extraction_csv_with_mocked_llm(monkeypatch, tmp_
     assert "assessment.input.selected" in log_content
     assert "assessment.succeeded" in log_content
     assert "run.finished" in log_content
+
+
+def test_run_end_to_end_executes_extract_then_assess(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_ocr.pdf").write_text("raw-bytes", encoding="utf-8")
+
+    def _direct_extractor(_pdf_path: Path) -> str:
+        return "  "
+
+    def _ocr_engine(_pdf_path: Path) -> str:
+        return "Widget A quantity 10 supplier ACME"
+
+    def _mock_extract_products(self, *, prompt: str, context: LlmRequestContext) -> str:
+        assert "invoice_ocr.pdf" in prompt
+        assert context.command == "extract"
+        return (
+            '{"products": ['
+            '{"product_name": "Widget A", "quantity": "10", '
+            '"supplier": "ACME", "extraction_status": "confirmed"}]}'
+        )
+
+    def _mock_assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
+        assert "Widget A" in prompt
+        assert context.command == "assess"
+        return json.dumps(
+            {
+                "risikostufe": 3,
+                "preisänderung_prozent": 4.0,
+                "begründung": "Sequential run validated.",
+            }
+        )
+
+    monkeypatch.setattr(cli, "_read_document_text_placeholder", _direct_extractor)
+    monkeypatch.setattr(cli, "_run_ocr_placeholder", _ocr_engine)
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.OpenAIClient.extract_products",
+        _mock_extract_products,
+    )
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.OpenAIClient.assess_product",
+        _mock_assess_product,
+    )
+    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "run", "--config", str(config_file)])
+
+    assert cli.main() == 0
+
+    output_dir = tmp_path / "data" / "output"
+    extraction_files = list(output_dir.glob("extraction_*.csv"))
+    assessment_files = list(output_dir.glob("assessment_*.csv"))
+    assert len(extraction_files) == 1
+    assert len(assessment_files) == 1
+
+    with assessment_files[0].open("r", encoding="utf-8", newline="") as csv_file:
+        rows = list(csv.DictReader(csv_file))
+
+    assert len(rows) == 1
+    assert rows[0]["product_name"] == "Widget A"
+    assert rows[0]["bewertungsstatus"] == "assessed"
+    assert rows[0]["risikostufe"] == "3"
+
+    log_content = (tmp_path / "logs" / "app.log").read_text(encoding="utf-8")
+    assert "command.received" in log_content
+    assert "assessment.succeeded" in log_content

@@ -44,6 +44,12 @@ def _build_parser() -> argparse.ArgumentParser:
     assess = subparsers.add_parser("assess", help="Assess extracted products")
     assess.add_argument("--config", required=True, help="Path to YAML config file")
 
+    run = subparsers.add_parser(
+        "run",
+        help="Run extraction and assessment sequentially",
+    )
+    run.add_argument("--config", required=True, help="Path to YAML config file")
+
     return parser
 
 
@@ -73,7 +79,7 @@ def main() -> int:
     status_service.load(on_corrupt_file=config.parameters.on_corrupt_status_file)
 
     try:
-        if args.command in {"extract", "assess"}:
+        if args.command in {"extract", "assess", "run"}:
             logger.info(
                 "command.received",
                 extra={
@@ -86,25 +92,29 @@ def main() -> int:
                 f"Supply Chain Checker scaffold is ready. "
                 f"Command='{args.command}', config='{args.config}', run_id='{run_context.run_id}'."
             )
-            artifact_path = (
-                _run_extract_command(
-                    config=config,
-                    run_id=run_context.run_id,
-                    run_context=run_context,
-                    status_service=status_service,
+            artifact_paths: list[Path] = []
+            if args.command in {"extract", "run"}:
+                artifact_paths.append(
+                    _run_extract_command(
+                        config=config,
+                        run_id=run_context.run_id,
+                        run_context=run_context,
+                        status_service=status_service,
+                    )
                 )
-                if args.command == "extract"
-                else _run_assess_command(config=config, run_context=run_context)
-            )
-            logger.info(
-                "run.artifact.created",
-                extra={
-                    "event": "run.artifact.created",
-                    "command": args.command,
-                    "run_id": run_context.run_id,
-                    "artifact_path": str(artifact_path),
-                },
-            )
+            if args.command in {"assess", "run"}:
+                artifact_paths.append(_run_assess_command(config=config, run_context=run_context))
+
+            for artifact_path in artifact_paths:
+                logger.info(
+                    "run.artifact.created",
+                    extra={
+                        "event": "run.artifact.created",
+                        "command": args.command,
+                        "run_id": run_context.run_id,
+                        "artifact_path": str(artifact_path),
+                    },
+                )
 
             if args.command == "assess":
                 for pdf_path in status_service.select_unprocessed_pdfs(config.paths.input_dir):
