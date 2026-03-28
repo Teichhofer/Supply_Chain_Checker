@@ -13,6 +13,30 @@ class LlmClientError(Exception):
     """Raised when communication with an LLM provider fails."""
 
 
+class LlmConfigurationError(LlmClientError):
+    """Raised when the LLM client itself is misconfigured."""
+
+
+class LlmAuthenticationError(LlmClientError):
+    """Raised when provider authentication fails."""
+
+
+class LlmRateLimitError(LlmClientError):
+    """Raised when a provider request is rate-limited."""
+
+
+class LlmTimeoutError(LlmClientError):
+    """Raised when a provider request exceeds its timeout."""
+
+
+class LlmServiceError(LlmClientError):
+    """Raised for transient upstream/provider failures."""
+
+
+class LlmResponseError(LlmClientError):
+    """Raised when provider responses cannot be parsed reliably."""
+
+
 @dataclass(frozen=True)
 class LlmRequestContext:
     """Context metadata for an LLM request used in logs and retries."""
