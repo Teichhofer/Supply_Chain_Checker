@@ -71,7 +71,9 @@ class ExtractionService:
                     "command": command,
                     "document_path": str(pdf_path),
                     "error_type": type(exc).__name__,
+                    "error_message": str(exc),
                 },
+                exc_info=exc,
             )
             raise
 
@@ -115,7 +117,35 @@ class ExtractionService:
             prompt=prompt,
             context=LlmRequestContext(run_id=run_id, command=command),
         )
-        return self._response_parser(response_text=llm_response, document_name=pdf_path.name)
+        try:
+            products = self._response_parser(response_text=llm_response, document_name=pdf_path.name)
+        except ParsingError as exc:
+            logger.warning(
+                "extraction.response.parse.failed",
+                extra={
+                    "event": "extraction.response.parse.failed",
+                    "run_id": run_id,
+                    "command": command,
+                    "document_path": str(pdf_path),
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "response_length": len(llm_response),
+                },
+                exc_info=exc,
+            )
+            raise
+
+        logger.info(
+            "extraction.products.parsed",
+            extra={
+                "event": "extraction.products.parsed",
+                "run_id": run_id,
+                "command": command,
+                "document_path": str(pdf_path),
+                "product_count": len(products),
+            },
+        )
+        return products
 
 
 __all__ = ["ExtractionService", "LlmClientError", "ParsingError"]

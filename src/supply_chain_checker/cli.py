@@ -167,18 +167,38 @@ def _run_extract_command(
 ) -> Path:
     extraction_service = _build_extraction_service(config=config)
     extracted_products: list[ExtractedProduct] = []
+    attempted_documents = 0
 
     for pdf_path in status_service.select_unprocessed_pdfs(config.paths.input_dir):
+        attempted_documents += 1
+        logger.info(
+            "extraction.document.started",
+            extra={
+                "event": "extraction.document.started",
+                "command": "extract",
+                "run_id": run_id,
+                "document_path": str(pdf_path),
+            },
+        )
         try:
-            extracted_products.extend(
-                extraction_service.extract_products_from_document(
-                    pdf_path=pdf_path,
-                    extraction_prompt_template=config.prompts.extraction,
-                    max_products_per_document=config.parameters.max_products_per_document,
-                    use_ocr_fallback=config.parameters.use_ocr_fallback,
-                    run_id=run_id,
-                    command="extract",
-                )
+            document_products = extraction_service.extract_products_from_document(
+                pdf_path=pdf_path,
+                extraction_prompt_template=config.prompts.extraction,
+                max_products_per_document=config.parameters.max_products_per_document,
+                use_ocr_fallback=config.parameters.use_ocr_fallback,
+                run_id=run_id,
+                command="extract",
+            )
+            extracted_products.extend(document_products)
+            logger.info(
+                "extraction.document.succeeded",
+                extra={
+                    "event": "extraction.document.succeeded",
+                    "command": "extract",
+                    "run_id": run_id,
+                    "document_path": str(pdf_path),
+                    "product_count": len(document_products),
+                },
             )
             status_service.mark_processed_and_persist(pdf_path.name)
         except (PdfProcessingError, OcrProcessingError, LlmClientError, ParsingError) as exc:
@@ -190,7 +210,9 @@ def _run_extract_command(
                     "run_id": run_id,
                     "document_path": str(pdf_path),
                     "error_type": type(exc).__name__,
+                    "error_message": str(exc),
                 },
+                exc_info=exc,
             )
             extracted_products.append(
                 ExtractedProduct(
@@ -202,6 +224,17 @@ def _run_extract_command(
                     extraction_hint=f"Document processing failed: {type(exc).__name__}",
                 )
             )
+
+    logger.info(
+        "extraction.command.summary",
+        extra={
+            "event": "extraction.command.summary",
+            "command": "extract",
+            "run_id": run_id,
+            "document_count": attempted_documents,
+            "product_count": len(extracted_products),
+        },
+    )
 
     if not extracted_products:
         extracted_products.append(
