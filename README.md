@@ -1,196 +1,234 @@
 # Supply Chain Checker
 
-Supply Chain Checker ist ein lokales Python-CLI-Tool, das beliebige PDFs einliest, bei Bedarf per OCR Text gewinnt und mit Hilfe eines LLMs daraus erwähnte Produkte strukturiert extrahiert. Anschließend bewertet es jedes Produkt einzeln anhand konfigurierbarer Prompts hinsichtlich Lieferkettenrisiko, Risikostufe und erwarteter Preisänderung und speichert die Ergebnisse als CSV.
+Supply Chain Checker ist ein lokales Python-CLI-Tool zur Verarbeitung von PDF-Dokumenten (z. B. Rechnungen oder Lieferscheinen). Es extrahiert Produkte aus PDFs und bewertet diese anschließend pro Produkt mit einem LLM hinsichtlich Lieferkettenrisiko.
+
+Version 1 (MVP) ist bewusst pragmatisch gehalten, setzt aber auf klare Architektur, robustes Fehlerhandling, strukturiertes Logging und gute Erweiterbarkeit.
 
 ---
 
-## Überblick
+## 1) Architekturüberblick
 
-Das Projekt ist als schnell lauffähiges, aber sauber aufgebautes MVP konzipiert.  
-Der Fokus liegt auf:
+Die Verarbeitung ist in zwei voneinander getrennte CLI-Schritte aufgeteilt:
 
-- robuster PDF-Verarbeitung
-- OCR-Fallback bei nicht durchsuchbaren Dokumenten
-- LLM-gestützter Produktextraktion
-- separater Risikobewertung pro Produkt
-- sauberem Fehlerhandling
-- ausführlichem Logging
-- guter Testbarkeit
-- klarer Erweiterbarkeit
+1. **`extract`**
+   - Liest neue PDFs aus `data/input`.
+   - Versucht zuerst direkte Textextraktion.
+   - Nutzt OCR nur bei fehlendem/brauchbarem Text.
+   - Extrahiert Produkte per LLM.
+   - Schreibt Ergebnisse als Extraktions-CSV nach `data/output`.
+   - Markiert verarbeitete Dokumente in der Statusdatei.
 
-Supply Chain Checker arbeitet vollständig lokal als **CLI-Anwendung** und wird über eine **YAML-Konfigurationsdatei** gesteuert.
+2. **`assess`**
+   - Nimmt die neueste Extraktions-CSV aus `data/output`.
+   - Bewertet jedes Produkt einzeln per LLM.
+   - Schreibt Bewertungs-CSV nach `data/output`.
+   - Gibt Bewertungsergebnisse zusätzlich in der Konsole aus.
 
----
+### Wichtige Module (src/supply_chain_checker)
 
-## Hauptfunktionen
+- `cli.py`: CLI-Einstiegspunkt (`extract`, `assess`) und Run-Orchestrierung.
+- `config.py`: Laden und Validieren der YAML-Konfiguration.
+- `logging_setup.py`: Logging-Konfiguration inkl. Run-ID-bezogener Logs.
+- `services/pdf_reader.py`: Direkte PDF-Extraktion + OCR-Fallback.
+- `services/ocr_service.py`: OCR-Anbindung (gekapselt).
+- `services/extraction_service.py`: Dokumentweise Produktextraktion.
+- `services/assessment_service.py`: Produktweise Risikobewertung.
+- `services/csv_service.py`: Lesen/Schreiben von Extraktions- und Bewertungs-CSVs.
+- `services/status_service.py`: Tracking bereits verarbeiteter PDFs.
+- `services/llm/openai_client.py`: OpenAI-Adapter für LLM-Aufrufe.
+- `parsers/*`: Parser für LLM-Antwortformate.
 
-### 1. Produktextraktion aus PDFs
-- verarbeitet automatisch alle neuen PDFs in einem konfigurierten Eingabeverzeichnis
-- liest vorhandenen PDF-Text direkt aus
-- nutzt OCR nur dann, wenn kein brauchbarer Text vorhanden ist
-- extrahiert mit Hilfe eines LLMs alle im Dokument erwähnten Produkte
-- speichert die Ergebnisse pro Lauf in einer neuen CSV-Datei
+### Fehler- und Logging-Konzept
 
-### 2. Risikobewertung pro Produkt
-- verwendet automatisch die neueste Extraktions-CSV
-- bewertet jedes Produkt einzeln per LLM
-- nutzt dafür einen konfigurierbaren Prompt aus der YAML-Datei
-- erzeugt pro Lauf eine neue Bewertungs-CSV
-- zeigt die Ergebnisse zusätzlich in der Konsole an
+Die Implementierung nutzt Domänenfehler (u. a. Konfiguration, PDF, OCR, LLM, Parsing, IO, Status) und stabile Event-Namen im Logging. Recoverable Fehler auf Dokument-/Produktebene werden isoliert behandelt, damit ein Lauf möglichst vollständig durchläuft.
 
-### 3. Statusverwaltung
-- merkt sich bereits verarbeitete PDFs über eine Statusdatei
-- überspringt bekannte Dateien in späteren Läufen
-
-### 4. Robuste Verarbeitung
-- Fehler in einzelnen PDFs stoppen nicht den gesamten Lauf
-- Fehler in einzelnen Produkten stoppen nicht den gesamten Lauf
-- unvollständige oder unsichere Einträge werden gekennzeichnet statt still verworfen
+Referenz: `docs/ADR-0003-fehler-und-logging-konzept.md`.
 
 ---
 
-## Geplanter Ablauf
+## 2) Installation
 
-Das Tool arbeitet in zwei getrennten Schritten:
+### Voraussetzungen
 
-### Schritt 1: Extraktion
-1. PDFs aus dem Eingabeverzeichnis finden
-2. prüfen, ob die Datei bereits verarbeitet wurde
-3. Text direkt extrahieren oder OCR ausführen
-4. Produkte per LLM aus dem Dokument extrahieren
-5. Ergebnisse in einer Extraktions-CSV speichern
-6. Statusdatei aktualisieren
+- Python **3.11+**
+- optional: OCR-Engine auf dem Host (nur relevant, wenn OCR-Fallback benötigt wird)
+- OpenAI API Key als Umgebungsvariable `OPENAI_API_KEY` (für echte LLM-Requests)
 
-### Schritt 2: Bewertung
-1. neueste Extraktions-CSV laden
-2. jedes Produkt einzeln bewerten
-3. Risikoergebnis strukturiert erfassen
-4. neue Bewertungs-CSV erzeugen
-5. Resultate zusätzlich in der Konsole ausgeben
+### Setup (lokal)
 
----
-
-## Extrahierte Produktdaten
-
-### Pflichtfelder
-- Produktname
-- Dokumentenname / Quelle
-- Menge
-- Lieferant
-
-### Optionale Felder
-- Hersteller
-- Artikelnummer
-
-Wenn ein Produkt nicht sicher oder nicht vollständig extrahiert werden kann, wird es trotzdem gespeichert und entsprechend gekennzeichnet.
-
----
-
-## Bewertungsergebnis pro Produkt
-
-Für jedes bewertbare Produkt soll das System mindestens liefern:
-
-- **Begründung** als Freitext mit maximal 100 Wörtern
-- **Risikostufe** auf einer Skala von 1 bis 10
-- **geschätzte Preisänderung in Prozent**
-
-Produkte, die nicht sinnvoll bewertet werden können, werden in der Ausgabedatei als übersprungen markiert, inklusive Begründung.
-
----
-
-## Technische Eckdaten
-
-- **Sprache:** Python
-- **Ausführung:** lokales CLI-Tool
-- **Konfiguration:** YAML
-- **Zwischenspeicherung:** CSV
-- **Ausgabe:** CSV + Konsolenausgabe
-- **LLM in V1:** OpenAI API
-- **Architekturziel:** LLM-Anbindung austauschbar kapseln
-
----
-
-## Projektstruktur
-
-Eine mögliche Zielstruktur des Projekts:
-
-```text
-supply-chain-checker/
-├─ README.md
-├─ AGENTS.md
-├─ pyproject.toml
-├─ requirements.txt
-├─ .env.example
-├─ config/
-│  └─ config.example.yaml
-├─ data/
-│  ├─ input/
-│  ├─ output/
-│  └─ state/
-├─ logs/
-├─ src/
-│  └─ supply_chain_checker/
-│     ├─ cli.py
-│     ├─ config.py
-│     ├─ logging_setup.py
-│     ├─ models/
-│     ├─ services/
-│     │  ├─ pdf_reader.py
-│     │  ├─ ocr_service.py
-│     │  ├─ extraction_service.py
-│     │  ├─ assessment_service.py
-│     │  ├─ status_service.py
-│     │  ├─ csv_service.py
-│     │  └─ llm/
-│     │     ├─ base.py
-│     │     └─ openai_client.py
-│     ├─ parsers/
-│     └─ utils/
-├─ tests/
-│  ├─ unit/
-│  ├─ integration/
-│  └─ fixtures/
-└─ sample_data/
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
 ```
 
-## CLI-Kommandos
+Optional für Entwicklung/Checks:
 
-Mindestens diese Befehle werden unterstützt:
+```bash
+pip install -e .[dev]
+```
+
+---
+
+## 3) Konfiguration
+
+Nutze die Beispielkonfiguration als Startpunkt:
+
+```bash
+cp config/config.example.yaml config/config.yaml
+```
+
+Danach (falls noch nicht gesetzt) API Key exportieren:
+
+```bash
+export OPENAI_API_KEY="<dein_api_key>"
+```
+
+### Bedeutung der Verzeichnisse
+
+- `data/input`: Neue, zu verarbeitende PDFs.
+- `data/output`: Laufbezogene CSV-Artefakte (`extraction_*.csv`, `assessment_*.csv`).
+- `data/state`: Statusdateien (z. B. bereits verarbeitete PDFs).
+- `logs`: Laufbezogene Logdateien.
+
+Die Verzeichnisse werden beim CLI-Start automatisch angelegt, falls sie fehlen.
+
+---
+
+## 4) CLI-Beispiele (direkt ausführbar)
+
+Nach Installation via `pip install -e .` sind beide Varianten ausführbar.
+
+### Variante A: Konsolen-Skript
+
+```bash
+supply-chain-checker extract --config config/config.yaml
+supply-chain-checker assess --config config/config.yaml
+```
+
+### Variante B: Modulaufruf
 
 ```bash
 python -m supply_chain_checker extract --config config/config.yaml
 python -m supply_chain_checker assess --config config/config.yaml
 ```
 
+> Hinweis: Für einen echten End-to-End-Lauf müssen PDFs in `data/input` liegen und `OPENAI_API_KEY` gesetzt sein.
+
 ---
 
+## 5) Beispiel-Setup für Erstinbetriebnahme
 
-## Qualitätssicherung
+1. Umgebung erstellen und Paket installieren (siehe Installation).
+2. Konfiguration kopieren:
+   ```bash
+   cp config/config.example.yaml config/config.yaml
+   ```
+3. API Key setzen:
+   ```bash
+   export OPENAI_API_KEY="<dein_api_key>"
+   ```
+4. Test-PDF(s) nach `data/input` legen.
+5. Extraktion starten:
+   ```bash
+   supply-chain-checker extract --config config/config.yaml
+   ```
+6. Bewertung starten:
+   ```bash
+   supply-chain-checker assess --config config/config.yaml
+   ```
+7. Ergebnisse prüfen:
+   - CSVs in `data/output`
+   - Logs in `logs`
 
-Für reproduzierbare lokale Qualitätschecks ist ein zentraler Befehl vorhanden:
+---
+
+## 6) Grenzen von V1
+
+Version 1 umfasst bewusst nur den MVP-Umfang:
+
+- Nur lokales CLI (keine Weboberfläche).
+- Keine Datenbank, keine User-/Rechteverwaltung.
+- Keine externen Live-Datenquellen.
+- Fokus auf OpenAI als erste LLM-Implementierung.
+- OCR wird nur als Fallback genutzt.
+- Prompt-/Antwortqualität hängt vom Eingabedokument und LLM-Verhalten ab.
+
+---
+
+## 7) Erweiterbarkeit
+
+Das Projekt ist modular vorbereitet. Typische Erweiterungen:
+
+- **Weitere LLM-Provider**: neuen Adapter unter `services/llm/` ergänzen.
+- **Alternative OCR-Backends**: `ocr_service.py` austauschbar erweitern.
+- **Zusätzliche Ausgabeziele**: neben CSV z. B. API/DB-Writer ergänzen.
+- **Neue Parsing-Strategien**: Parser in `parsers/` erweitern.
+- **Zusätzliche CLI-Kommandos**: Subcommands in `cli.py` ergänzen.
+
+---
+
+## 8) Betrieb & Troubleshooting
+
+### Häufige Fehlerbilder und Lösungen
+
+1. **`OPENAI_API_KEY` fehlt**
+   - Symptom: LLM-Aufrufe schlagen mit Konfigurations-/Authentifizierungsfehler fehl.
+   - Lösung:
+     - `export OPENAI_API_KEY="<dein_api_key>"`
+     - Lauf neu starten.
+
+2. **OCR nicht verfügbar / OCR-Fehler**
+   - Symptom: Bei nicht durchsuchbaren PDFs scheitert Verarbeitung im OCR-Schritt.
+   - Lösung:
+     - OCR-Abhängigkeiten im System installieren/prüfen.
+     - Testweise ein durchsuchbares PDF nutzen.
+     - Logs auf `ocr.*`/`pdf.*` Events prüfen.
+
+3. **Parsing-Probleme bei LLM-Antworten**
+   - Symptom: Produkte/Bewertungen werden als `uncertain` markiert oder Parsing-Fehler geloggt.
+   - Lösung:
+     - Prompts in `config/config.yaml` präzisieren (explizites JSON-Format).
+     - Dokumentqualität prüfen (Textrauschen/Scanqualität).
+     - Log-Einträge zu `parsing`/`llm` analysieren.
+
+4. **Keine neuen Ergebnisse trotz vorhandener PDFs**
+   - Symptom: Dateien werden übersprungen.
+   - Ursache: PDFs bereits in Statusdatei markiert.
+   - Lösung:
+     - `data/state/processed_files.json` prüfen.
+     - Für erneuten Lauf Statusdatei gezielt zurücksetzen.
+
+### Kurz-Runbook (Fehlersuche)
+
+1. Prüfen, ob `config/config.yaml` geladen werden kann.
+2. Prüfen, ob `OPENAI_API_KEY` gesetzt ist.
+3. Prüfen, ob Eingabedateien in `data/input` liegen.
+4. Letzte Logdatei in `logs/` auf `ERROR`/`WARNING` und Eventnamen prüfen.
+5. Prüfen, ob in `data/output` neue CSV-Artefakte erstellt wurden.
+6. Bei OCR-/Parsing-Problemen zuerst mit einem kleinen, gut lesbaren Test-PDF reproduzieren.
+
+---
+
+## 9) Qualitätssicherung
+
+Lokaler Standard-Check:
 
 ```bash
 make check
 ```
 
-Der Befehl führt nacheinander aus:
+Führt aus:
 
-- Format-Checks (`black --check`, `ruff format --check`)
-- Linting (`ruff check`)
-- Type-Checks (`mypy`)
-- Tests inkl. Coverage (`pytest --cov ...`)
-
-Coverage-Reports werden dabei erzeugt als:
-
-- `coverage.xml`
-- `htmlcov/index.html`
-
-Dieselbe Prüfkette läuft auch in CI über GitHub Actions (`.github/workflows/quality.yml`).
+- Format-Checks
+- Linting
+- Type-Checks
+- Tests inkl. Coverage
 
 ---
 
-## Konkreter Umsetzungsplan
+## 10) Weiterführende Dokumente
 
-Ein detaillierter, task-basierter Entwicklungsplan für V1 liegt unter:
-
-- `docs/UMSETZUNGSPLAN_V1.md`
+- `docs/UMSETZUNGSPLAN_V1.md` – Task-Plan für V1
+- `docs/ADR-0003-fehler-und-logging-konzept.md` – verbindliche Fehler-/Logging-Richtlinie

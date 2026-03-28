@@ -1,14 +1,25 @@
+# Beispielkonfiguration für Supply Chain Checker (V1)
+# Nutzung:
+#   cp config/config.example.yaml config/config.yaml
+#   export OPENAI_API_KEY="<dein_api_key>"
+
 paths:
+  # Eingangsordner für neue PDFs
   input_dir: data/input
+  # Ausgabeverzeichnis für CSV-Artefakte je Lauf
   output_dir: data/output
+  # Statusdateien (z. B. processed_files.json)
   state_dir: data/state
+  # Logdateien je Lauf
   logs_dir: logs
 
 logging:
+  # DEBUG | INFO | WARNING | ERROR
   level: INFO
   file_name: supply_chain_checker.log
 
 llm:
+  # V1 unterstützt OpenAI als Provider
   provider: openai
   model: gpt-4.1-mini
   timeout_seconds: 30
@@ -24,7 +35,11 @@ prompts:
     Antworte als JSON mit risikostufe, preisänderung_prozent und begründung.
 
 parameters:
+  # OCR nur nutzen, wenn direkte PDF-Textextraktion nicht ausreicht
   use_ocr_fallback: true
+  # Sicherheitsgrenze pro Dokument
   max_products_per_document: 100
+  # Maximale Wortzahl für die Begründung im Assessment
   max_assessment_reason_words: 100
+  # Verhalten bei defekter Statusdatei: abort | reset
   on_corrupt_status_file: abort
