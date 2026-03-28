@@ -85,19 +85,13 @@ class StatusService:
     def select_unprocessed_pdfs(self, input_dir: Path) -> list[Path]:
         """Return deterministically sorted PDF paths not yet marked as processed."""
 
-        discovered_pdf_paths = sorted(
-            (
-                candidate_path
-                for candidate_path in input_dir.iterdir()
-                if candidate_path.is_file() and candidate_path.suffix.lower() == ".pdf"
-            ),
-            key=lambda candidate_path: candidate_path.name,
-        )
+        discovered_pdf_paths = self._discover_pdf_files(input_dir)
         unprocessed_paths = [
             pdf_path
             for pdf_path in discovered_pdf_paths
             if pdf_path.name not in self._entries_by_file
         ]
+        skipped_processed_count = len(discovered_pdf_paths) - len(unprocessed_paths)
         logger.info(
             "status.selection.completed",
             extra={
@@ -105,9 +99,20 @@ class StatusService:
                 "input_dir": str(input_dir),
                 "discovered_pdf_count": len(discovered_pdf_paths),
                 "selected_pdf_count": len(unprocessed_paths),
+                "skipped_processed_count": skipped_processed_count,
             },
         )
         return unprocessed_paths
+
+    def _discover_pdf_files(self, input_dir: Path) -> list[Path]:
+        return sorted(
+            (
+                candidate_path
+                for candidate_path in input_dir.iterdir()
+                if candidate_path.is_file() and candidate_path.suffix.lower() == ".pdf"
+            ),
+            key=lambda candidate_path: candidate_path.name,
+        )
 
     def _read_entries_from_status_file(self) -> dict[str, ProcessedFileStatus]:
         try:
