@@ -208,3 +208,6 @@ __marimo__/
 
 # Local project secrets
 config/secrets.env
+
+# Local data files
+/data/
