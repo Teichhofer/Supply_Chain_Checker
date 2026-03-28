@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -108,6 +109,49 @@ def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, ca
     artifact_content = output_files[0].read_text(encoding="utf-8")
     assert "run_id" in artifact_content
     assert run_id in artifact_content
+
+
+def test_main_loads_openai_key_from_sibling_secrets_env(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(_MINIMAL_CONFIG, encoding="utf-8")
+    (config_dir / "secrets.env").write_text(
+        "export OPENAI_API_KEY='sk-test-from-secrets'\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["supply-chain-checker", "extract", "--config", str(config_dir / "config.yaml")],
+    )
+
+    assert cli.main() == 0
+    assert os.getenv("OPENAI_API_KEY") == "sk-test-from-secrets"
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+
+def test_main_does_not_override_existing_openai_key(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-existing")
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(_MINIMAL_CONFIG, encoding="utf-8")
+    (config_dir / "secrets.env").write_text(
+        "OPENAI_API_KEY=sk-from-secrets\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["supply-chain-checker", "extract", "--config", str(config_dir / "config.yaml")],
+    )
+
+    assert cli.main() == 0
+    assert os.getenv("OPENAI_API_KEY") == "sk-existing"
 
 
 def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: Path) -> None:

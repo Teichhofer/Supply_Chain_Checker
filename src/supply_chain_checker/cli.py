@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 from supply_chain_checker.config import AppConfig, load_config
@@ -38,6 +39,71 @@ from supply_chain_checker.services.status_service import StatusService
 logger = logging.getLogger(__name__)
 
 
+def _load_secrets_env(config_path: str | Path) -> None:
+    """Load environment variables from a sibling secrets.env file when present."""
+
+    secrets_path = Path(config_path).resolve().parent / "secrets.env"
+    if not secrets_path.exists():
+        logger.info(
+            "secrets.load.skipped",
+            extra={
+                "event": "secrets.load.skipped",
+                "secrets_path": str(secrets_path),
+                "reason": "file_not_found",
+            },
+        )
+        return
+
+    loaded_keys = 0
+    for raw_line in secrets_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+
+        if "=" not in line:
+            logger.warning(
+                "secrets.load.entry.invalid",
+                extra={
+                    "event": "secrets.load.entry.invalid",
+                    "secrets_path": str(secrets_path),
+                    "entry": raw_line,
+                },
+            )
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if not key:
+            logger.warning(
+                "secrets.load.entry.invalid",
+                extra={
+                    "event": "secrets.load.entry.invalid",
+                    "secrets_path": str(secrets_path),
+                    "entry": raw_line,
+                },
+            )
+            continue
+
+        if key in os.environ:
+            continue
+
+        os.environ[key] = value
+        loaded_keys += 1
+
+    logger.info(
+        "secrets.load.succeeded",
+        extra={
+            "event": "secrets.load.succeeded",
+            "secrets_path": str(secrets_path),
+            "loaded_keys": loaded_keys,
+        },
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="supply-chain-checker")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -65,6 +131,7 @@ def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
 
+    _load_secrets_env(args.config)
     config = load_config(args.config)
     run_context = create_run_context()
     log_file_path = setup_logging(
