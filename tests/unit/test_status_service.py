@@ -240,3 +240,25 @@ def test_select_unprocessed_pdfs_returns_sorted_new_pdfs_only(tmp_path) -> None:
     selected = service.select_unprocessed_pdfs(input_dir)
 
     assert [path.name for path in selected] == ["a_invoice.PDF"]
+
+
+def test_select_unprocessed_pdfs_logs_processed_skip_count(tmp_path, caplog) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_a.pdf").write_text("dummy", encoding="utf-8")
+    (input_dir / "invoice_b.pdf").write_text("dummy", encoding="utf-8")
+    (input_dir / "ignore.csv").write_text("dummy", encoding="utf-8")
+
+    service = StatusService(status_file_path=tmp_path / "processed_files.json")
+    service.load()
+    service.mark_processed("invoice_a.pdf")
+
+    with caplog.at_level("INFO"):
+        selected = service.select_unprocessed_pdfs(input_dir)
+
+    assert [path.name for path in selected] == ["invoice_b.pdf"]
+    selection_logs = [record for record in caplog.records if record.msg == "status.selection.completed"]
+    assert len(selection_logs) == 1
+    assert selection_logs[0].__dict__["discovered_pdf_count"] == 2
+    assert selection_logs[0].__dict__["selected_pdf_count"] == 1
+    assert selection_logs[0].__dict__["skipped_processed_count"] == 1
