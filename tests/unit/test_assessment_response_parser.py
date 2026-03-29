@@ -122,6 +122,32 @@ def test_parse_assessment_response_supports_json_with_leading_and_trailing_text(
 
 
 @pytest.mark.parametrize(
+    ("risk_label", "expected"),
+    [
+        ("hoch", 8),
+        ("mittel", 6),
+        ("niedrig", 3),
+        ("very high", 10),
+    ],
+)
+def test_parse_assessment_response_supports_qualitative_risk_labels(
+    risk_label: str,
+    expected: int,
+) -> None:
+    parsed = parse_assessment_response(
+        response_text=(
+            "{"
+            f'"risikostufe": "{risk_label}", '
+            '"preisänderung_prozent": 3, '
+            '"begründung": "Qualitative Einstufung."'
+            "}"
+        )
+    )
+
+    assert parsed.risk_level == expected
+
+
+@pytest.mark.parametrize(
     "risk_value",
     ['""', '"abc"', "2.5", "true", "{}", "2.5e1"],
 )

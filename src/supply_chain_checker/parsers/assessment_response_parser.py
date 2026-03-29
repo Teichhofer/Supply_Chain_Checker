@@ -90,6 +90,20 @@ def _parse_risk_level(value: Any) -> int:
         normalized = value.strip()
         if not normalized:
             raise ParsingError("Field 'risikostufe' is required.")
+        qualitative_mapping = {
+            "niedrig": 3,
+            "low": 3,
+            "mittel": 6,
+            "medium": 6,
+            "moderat": 6,
+            "hoch": 8,
+            "high": 8,
+            "sehr hoch": 10,
+            "very high": 10,
+        }
+        qualitative_risk_level = qualitative_mapping.get(normalized.lower())
+        if qualitative_risk_level is not None:
+            return qualitative_risk_level
         if not re.fullmatch(r"[+-]?\d+", normalized):
             raise ParsingError("Field 'risikostufe' must be an integer between 1 and 10.")
         parsed = int(normalized)
