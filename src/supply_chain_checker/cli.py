@@ -274,10 +274,7 @@ def _handle_remove_readonly(function: object, path: str, _: BaseException) -> No
         return
 
     try:
-        if path_obj.is_dir():
-            shutil.rmtree(path_obj, onerror=_handle_remove_readonly)
-        else:
-            path_obj.unlink(missing_ok=True)
+        function(path_obj)
     except OSError:
         return
 

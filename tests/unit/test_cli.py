@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 from pathlib import Path
 
 import pytest
@@ -194,6 +195,29 @@ def test_main_clear_deletes_nested_state_files(monkeypatch, tmp_path: Path) -> N
     state_dir = tmp_path / "data" / "state"
     assert state_dir.exists()
     assert list(state_dir.iterdir()) == []
+
+
+def test_handle_remove_readonly_does_not_recurse_to_rmtree(monkeypatch, tmp_path: Path) -> None:
+    nested_dir = tmp_path / "state"
+    nested_dir.mkdir(parents=True, exist_ok=True)
+    (nested_dir / "artifact.txt").write_text("x", encoding="utf-8")
+
+    def _unexpected_rmtree(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("shutil.rmtree must not be called from onerror handler")
+
+    monkeypatch.setattr(cli.shutil, "rmtree", _unexpected_rmtree)
+
+    cli._handle_remove_readonly(os.rmdir, str(nested_dir), PermissionError("permission denied"))
+
+
+def test_handle_remove_readonly_unlinks_readonly_file(tmp_path: Path) -> None:
+    target_file = tmp_path / "readonly.log"
+    target_file.write_text("log", encoding="utf-8")
+    target_file.chmod(stat.S_IREAD)
+
+    cli._handle_remove_readonly(os.unlink, str(target_file), PermissionError("permission denied"))
+
+    assert not target_file.exists()
 
 
 def test_main_loads_openai_key_from_sibling_secrets_env(monkeypatch, tmp_path: Path) -> None:
