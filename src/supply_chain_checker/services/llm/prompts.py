@@ -20,10 +20,31 @@ def build_extraction_prompt(
         "max_products_per_document": max_products_per_document,
     }
     try:
-        return template.format(**format_values)
+        rendered_template = template.format(**format_values).strip()
     except KeyError as exc:
         missing = str(exc).strip("'")
         raise ValueError(f"Unknown placeholder in extraction prompt template: {missing}") from exc
+
+    sections: list[str] = [rendered_template]
+
+    if "{document_name}" not in template:
+        sections.append(f"Dokumentname: {document_name}")
+    if "{max_products_per_document}" not in template:
+        sections.append(f"Maximale Produktanzahl: {max_products_per_document}")
+    if "{document_text}" not in template:
+        sections.append("Dokumenttext:")
+        sections.append(document_text)
+
+    sections.append(
+        (
+            "Antwortformat (nur JSON, keine Markdown-Blöcke): "
+            '[{"product_name":"...","quantity":"...","supplier":"...",'
+            '"manufacturer":"...","article_number":"...","extraction_status":"...",'
+            '"extraction_hint":"..."}]'
+        )
+    )
+
+    return "\n\n".join(section for section in sections if section)
 
 
 def build_assessment_prompt(*, template: str, product: ExtractedProduct) -> str:

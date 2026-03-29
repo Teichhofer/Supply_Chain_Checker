@@ -29,8 +29,11 @@ llm:
 
 prompts:
   extraction: |
-    Extrahiere alle im Dokument genannten Produkte.
-    Antworte als JSON-Liste mit den verfügbaren Produktfeldern.
+    Extrahiere alle im Dokument genannten Produkte aus "{document_name}".
+    Gib maximal {max_products_per_document} Produkte zurück.
+    Nutze den folgenden Dokumenttext:
+    {document_text}
+    Antworte ausschließlich als JSON-Liste von Objekten.
   assessment: |
     Bewerte das Lieferkettenrisiko für das Produkt "{product_name}".
     Antworte als JSON mit risikostufe, preisänderung_prozent und begründung.
