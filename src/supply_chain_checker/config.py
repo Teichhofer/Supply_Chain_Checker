@@ -29,6 +29,15 @@ _SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
     },
 }
 
+_SCHEMA_ALLOWED_FIELDS: dict[str, set[str]] = {
+    "__root__": _SCHEMA_REQUIRED_FIELDS["__root__"],
+    "paths": _SCHEMA_REQUIRED_FIELDS["paths"],
+    "logging": _SCHEMA_REQUIRED_FIELDS["logging"],
+    "llm": _SCHEMA_REQUIRED_FIELDS["llm"] | {"extraction_model", "assessment_model"},
+    "prompts": _SCHEMA_REQUIRED_FIELDS["prompts"],
+    "parameters": _SCHEMA_REQUIRED_FIELDS["parameters"],
+}
+
 
 class ConfigurationError(Exception):
     """Raised when YAML configuration is invalid or cannot be loaded."""
@@ -58,6 +67,8 @@ class LlmConfig:
 
     provider: str
     model: str
+    extraction_model: str
+    assessment_model: str
     timeout_seconds: int
     max_retries: int
     temperature: float
@@ -132,6 +143,14 @@ def load_config(config_path: str | Path) -> AppConfig:
 
     provider = _string(llm_section["provider"], "llm.provider")
     model = _string(llm_section["model"], "llm.model")
+    extraction_model = _string(
+        llm_section.get("extraction_model", model),
+        "llm.extraction_model",
+    )
+    assessment_model = _string(
+        llm_section.get("assessment_model", model),
+        "llm.assessment_model",
+    )
 
     timeout_seconds = _int(llm_section["timeout_seconds"], "llm.timeout_seconds", minimum=1)
     max_retries = _int(llm_section["max_retries"], "llm.max_retries", minimum=0)
@@ -185,6 +204,8 @@ def load_config(config_path: str | Path) -> AppConfig:
         llm=LlmConfig(
             provider=provider,
             model=model,
+            extraction_model=extraction_model,
+            assessment_model=assessment_model,
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
             temperature=temperature,
@@ -209,13 +230,14 @@ def _mapping(value: Any, *, section_name: str) -> dict[str, Any]:
 
 def _validate_schema(raw_config: dict[str, Any]) -> None:
     _require_fields(raw_config, _SCHEMA_REQUIRED_FIELDS["__root__"], section_name="root")
-    _reject_unknown_fields(raw_config, _SCHEMA_REQUIRED_FIELDS["__root__"], section_name="root")
+    _reject_unknown_fields(raw_config, _SCHEMA_ALLOWED_FIELDS["__root__"], section_name="root")
 
     for section_name in ("paths", "logging", "llm", "prompts", "parameters"):
         section = _mapping(raw_config.get(section_name), section_name=section_name)
         required_fields = _SCHEMA_REQUIRED_FIELDS[section_name]
+        allowed_fields = _SCHEMA_ALLOWED_FIELDS[section_name]
         _require_fields(section, required_fields, section_name=section_name)
-        _reject_unknown_fields(section, required_fields, section_name=section_name)
+        _reject_unknown_fields(section, allowed_fields, section_name=section_name)
 
 
 def _require_fields(
