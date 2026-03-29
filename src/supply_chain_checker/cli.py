@@ -39,6 +39,7 @@ from supply_chain_checker.services.pdf_reader import (
 from supply_chain_checker.services.status_service import StatusService
 
 logger = logging.getLogger(__name__)
+DEFAULT_CONFIG_PATH = Path("config/config.yaml")
 
 
 def _load_secrets_env(config_path: str | Path) -> None:
@@ -108,22 +109,38 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     extract = subparsers.add_parser("extract", help="Extract products from PDFs")
-    extract.add_argument("--config", required=True, help="Path to YAML config file")
+    extract.add_argument(
+        "--config",
+        default=str(DEFAULT_CONFIG_PATH),
+        help=f"Path to YAML config file (default: {DEFAULT_CONFIG_PATH})",
+    )
 
     assess = subparsers.add_parser("assess", help="Assess extracted products")
-    assess.add_argument("--config", required=True, help="Path to YAML config file")
+    assess.add_argument(
+        "--config",
+        default=str(DEFAULT_CONFIG_PATH),
+        help=f"Path to YAML config file (default: {DEFAULT_CONFIG_PATH})",
+    )
 
     run = subparsers.add_parser(
         "run",
         help="Run extraction and assessment sequentially",
     )
-    run.add_argument("--config", required=True, help="Path to YAML config file")
+    run.add_argument(
+        "--config",
+        default=str(DEFAULT_CONFIG_PATH),
+        help=f"Path to YAML config file (default: {DEFAULT_CONFIG_PATH})",
+    )
 
     clear = subparsers.add_parser(
         "clear",
         help="Delete logs, output, and state directories",
     )
-    clear.add_argument("--config", required=True, help="Path to YAML config file")
+    clear.add_argument(
+        "--config",
+        default=str(DEFAULT_CONFIG_PATH),
+        help=f"Path to YAML config file (default: {DEFAULT_CONFIG_PATH})",
+    )
 
     return parser
 
