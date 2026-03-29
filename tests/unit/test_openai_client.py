@@ -101,8 +101,13 @@ def test_openai_client_logs_prompt_and_response_in_llm_log(
 
     assert response == "response for extract prompt"
     llm_log_content = (tmp_path / "app_llm.log").read_text(encoding="utf-8")
+    assert "label=REQUEST" in llm_log_content
     assert "direction=request" in llm_log_content
+    assert "event=llm.communication" in llm_log_content
+    assert "command=extract" in llm_log_content
+    assert "payload_length=14" in llm_log_content
     assert "payload=extract prompt" in llm_log_content
+    assert "label=RESPONSE" in llm_log_content
     assert "direction=response" in llm_log_content
     assert "payload=response for extract prompt" in llm_log_content
 
@@ -199,6 +204,7 @@ def test_openai_client_logs_api_key_suffix_in_llm_error_payload(
         )
 
     llm_log_content = (tmp_path / "app_llm.log").read_text(encoding="utf-8")
+    assert "label=ERROR" in llm_log_content
     assert "direction=error" in llm_log_content
     assert "payload=OpenAI authentication failed (api_key_suffix=1234)." in llm_log_content
 
