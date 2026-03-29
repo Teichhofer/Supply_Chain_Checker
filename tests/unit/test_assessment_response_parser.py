@@ -44,15 +44,16 @@ def test_parse_assessment_response_rejects_invalid_required_fields(
         parse_assessment_response(response_text=response_text)
 
 
-def test_parse_assessment_response_rejects_overlong_reason() -> None:
+def test_parse_assessment_response_truncates_overlong_reason() -> None:
     reason = " ".join(["wort"] * 101)
 
-    with pytest.raises(ParsingError, match="at most 100 words"):
-        parse_assessment_response(
-            response_text=(
-                '{"risikostufe": 3, "preisänderung_prozent": 1.5, ' f'"begründung": "{reason}"' "}"
-            )
+    parsed = parse_assessment_response(
+        response_text=(
+            '{"risikostufe": 3, "preisänderung_prozent": 1.5, ' f'"begründung": "{reason}"' "}"
         )
+    )
+
+    assert len(parsed.reason.split()) == 100
 
 
 @pytest.mark.parametrize("price_change", ['"NaN"', '"Infinity"', '"-Infinity"'])
@@ -169,6 +170,14 @@ def test_parse_assessment_response_rejects_blank_price_change_string() -> None:
         parse_assessment_response(
             response_text='{"risikostufe": 3, "preisänderung_prozent": "   ", "begründung": "ok"}'
         )
+
+
+def test_parse_assessment_response_supports_price_change_ranges() -> None:
+    parsed = parse_assessment_response(
+        response_text='{"risikostufe": 3, "preisänderung_prozent": "25-60", "begründung": "ok"}'
+    )
+
+    assert parsed.price_change_percent == 42.5
 
 
 def test_parse_assessment_response_rejects_boolean_price_change() -> None:
