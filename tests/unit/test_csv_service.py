@@ -97,7 +97,9 @@ def test_read_extraction_products_csv_loads_domain_rows(tmp_path) -> None:
             "extraction_hint",
         ]
     )
-    ws.append(["run123", "invoice.pdf", "Bolt", "5", "ACME", "SupplierCo", "ART-1", "confirmed", ""])
+    ws.append(
+        ["run123", "invoice.pdf", "Bolt", "5", "ACME", "SupplierCo", "ART-1", "confirmed", ""]
+    )
     wb.save(xlsx_path)
 
     products = read_extraction_products_csv(csv_path=xlsx_path)

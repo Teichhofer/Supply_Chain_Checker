@@ -50,7 +50,9 @@ def _normalize_json_payload_text(response_text: str) -> str:
     if not normalized:
         return normalized
 
-    fence_match = re.search(r"```(?:json)?\s*(.*?)\s*```", normalized, flags=re.IGNORECASE | re.DOTALL)
+    fence_match = re.search(
+        r"```(?:json)?\s*(.*?)\s*```", normalized, flags=re.IGNORECASE | re.DOTALL
+    )
     if fence_match is not None:
         fenced_payload = fence_match.group(1).strip()
         if fenced_payload:

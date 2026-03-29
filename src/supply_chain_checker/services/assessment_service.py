@@ -183,6 +183,7 @@ class AssessmentService:
 
         return results
 
+
 def _determine_skip_reason(product: ExtractedProduct) -> str | None:
     if product.extraction_status != "confirmed":
         return "UNCONFIRMED_EXTRACTION"

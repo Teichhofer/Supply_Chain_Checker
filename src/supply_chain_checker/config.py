@@ -151,9 +151,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         "prompts.assessment",
     )
 
-    use_ocr_fallback = _bool(
-        parameters_section["use_ocr_fallback"], "parameters.use_ocr_fallback"
-    )
+    use_ocr_fallback = _bool(parameters_section["use_ocr_fallback"], "parameters.use_ocr_fallback")
     max_products_per_document = _int(
         parameters_section["max_products_per_document"],
         "parameters.max_products_per_document",
@@ -178,15 +176,9 @@ def load_config(config_path: str | Path) -> AppConfig:
 
     return AppConfig(
         paths=PathsConfig(
-            input_dir=Path(
-                _string(paths_section["input_dir"], "paths.input_dir")
-            ),
-            output_dir=Path(
-                _string(paths_section["output_dir"], "paths.output_dir")
-            ),
-            state_dir=Path(
-                _string(paths_section["state_dir"], "paths.state_dir")
-            ),
+            input_dir=Path(_string(paths_section["input_dir"], "paths.input_dir")),
+            output_dir=Path(_string(paths_section["output_dir"], "paths.output_dir")),
+            state_dir=Path(_string(paths_section["state_dir"], "paths.state_dir")),
             logs_dir=Path(_string(paths_section["logs_dir"], "paths.logs_dir")),
         ),
         logging=LoggingConfig(level=level, file_name=file_name),
