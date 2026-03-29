@@ -158,6 +158,16 @@ def _parse_price_change_percent(value: Any) -> float:
         if not normalized:
             raise ParsingError("Field 'preisänderung_prozent' is required.")
         normalized = normalized.replace(",", ".")
+        range_match = re.fullmatch(
+            r"\s*([+-]?\d+(?:\.\d+)?)\s*[-–]\s*([+-]?\d+(?:\.\d+)?)\s*",
+            normalized,
+        )
+        if range_match is not None:
+            lower_bound = float(range_match.group(1))
+            upper_bound = float(range_match.group(2))
+            if not (math.isfinite(lower_bound) and math.isfinite(upper_bound)):
+                raise ParsingError("Field 'preisänderung_prozent' must be finite.")
+            return (lower_bound + upper_bound) / 2.0
         try:
             parsed = float(normalized)
         except ValueError as exc:
@@ -183,8 +193,17 @@ def _parse_reason(value: Any, *, max_reason_words: int) -> str:
     if not normalized:
         raise ParsingError("Field 'begründung' must be a non-empty string.")
 
-    if len(normalized.split()) > max_reason_words:
-        raise ParsingError(f"Field 'begründung' must have at most {max_reason_words} words.")
+    words = normalized.split()
+    if len(words) > max_reason_words:
+        logger.info(
+            "assessment.parsing.reason.truncated",
+            extra={
+                "event": "assessment.parsing.reason.truncated",
+                "max_reason_words": max_reason_words,
+                "word_count": len(words),
+            },
+        )
+        return " ".join(words[:max_reason_words])
 
     return normalized
 
