@@ -88,9 +88,6 @@ def _load_secrets_env(config_path: str | Path) -> None:
             )
             continue
 
-        if key in os.environ:
-            continue
-
         os.environ[key] = value
         loaded_keys += 1
 

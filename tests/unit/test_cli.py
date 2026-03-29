@@ -133,7 +133,7 @@ def test_main_loads_openai_key_from_sibling_secrets_env(monkeypatch, tmp_path: P
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
-def test_main_does_not_override_existing_openai_key(monkeypatch, tmp_path: Path) -> None:
+def test_main_prefers_openai_key_from_sibling_secrets_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-existing")
 
@@ -151,7 +151,7 @@ def test_main_does_not_override_existing_openai_key(monkeypatch, tmp_path: Path)
     )
 
     assert cli.main() == 0
-    assert os.getenv("OPENAI_API_KEY") == "sk-existing"
+    assert os.getenv("OPENAI_API_KEY") == "sk-from-secrets"
 
 
 def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: Path) -> None:
