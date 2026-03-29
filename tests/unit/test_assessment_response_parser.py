@@ -180,6 +180,40 @@ def test_parse_assessment_response_supports_price_change_ranges() -> None:
     assert parsed.price_change_percent == 42.5
 
 
+def test_parse_assessment_response_supports_price_change_object() -> None:
+    parsed = parse_assessment_response(
+        response_text=(
+            '{'
+            '"risikostufe": "sehr hoch", '
+            '"preisänderung_prozent": {'
+            '"kurzfristig_0_3_monate": 35, '
+            '"mittelfristig_3_12_monate": 70, '
+            '"stressszenario_spitzenwert": 120'
+            '}, '
+            '"begründung": ["A", "B"]'
+            '}'
+        )
+    )
+
+    assert parsed.risk_level == 10
+    assert parsed.price_change_percent == 70
+    assert parsed.reason == "A B"
+
+
+def test_parse_assessment_response_supports_price_change_min_max_object() -> None:
+    parsed = parse_assessment_response(
+        response_text=(
+            '{'
+            '"risikostufe": "mittel", '
+            '"preisänderung_prozent": {"min": 8, "max": 22}, '
+            '"begründung": "ok"'
+            '}'
+        )
+    )
+
+    assert parsed.price_change_percent == 8
+
+
 def test_parse_assessment_response_rejects_boolean_price_change() -> None:
     with pytest.raises(ParsingError, match="must be numeric"):
         parse_assessment_response(

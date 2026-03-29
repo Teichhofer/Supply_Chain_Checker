@@ -184,14 +184,27 @@ def _parse_price_change_percent(value: object) -> float:
             raise ParsingError("Field 'preisänderung_prozent' must be finite.")
         return parsed
 
+    if isinstance(value, dict):
+        parsed_from_object = _parse_price_change_from_object(value)
+        if parsed_from_object is None:
+            raise ParsingError("Field 'preisänderung_prozent' must be numeric.")
+        return parsed_from_object
+
     raise ParsingError("Field 'preisänderung_prozent' must be numeric.")
 
 
 def _parse_reason(value: object, *, max_reason_words: int) -> str:
-    if not isinstance(value, str):
+    if isinstance(value, str):
+        normalized = " ".join(value.split())
+    elif isinstance(value, list):
+        normalized = " ".join(
+            " ".join(str(item).split())
+            for item in value
+            if isinstance(item, str) and item.strip()
+        )
+    else:
         raise ParsingError("Field 'begründung' must be a non-empty string.")
 
-    normalized = " ".join(value.split())
     if not normalized:
         raise ParsingError("Field 'begründung' must be a non-empty string.")
 
@@ -208,6 +221,46 @@ def _parse_reason(value: object, *, max_reason_words: int) -> str:
         return " ".join(words[:max_reason_words])
 
     return normalized
+
+
+def _parse_price_change_from_object(value: dict[object, object]) -> float | None:
+    preferred_keys = (
+        "mittelfristig_3_12_monate",
+        "mittelfristig",
+        "mittelfristig",
+        "kurzfristig_0_3_monate",
+        "kurzfristig",
+        "min",
+        "minimum",
+        "max",
+        "maximum",
+        "stressszenario_spitzenwert",
+        "spitzenwert",
+        "peak",
+    )
+    lowered_key_map = {
+        str(key).strip().lower(): entry for key, entry in value.items() if isinstance(key, str)
+    }
+    for key in preferred_keys:
+        candidate = lowered_key_map.get(key)
+        if candidate is None:
+            continue
+        try:
+            return _parse_price_change_percent(candidate)
+        except ParsingError:
+            continue
+
+    numeric_values: list[float] = []
+    for candidate in value.values():
+        try:
+            numeric_values.append(_parse_price_change_percent(candidate))
+        except ParsingError:
+            continue
+
+    if not numeric_values:
+        return None
+
+    return sum(numeric_values) / len(numeric_values)
 
 
 def _log_parsing_failure(*, message: str) -> None:

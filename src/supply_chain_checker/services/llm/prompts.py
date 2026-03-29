@@ -60,7 +60,21 @@ def build_assessment_prompt(*, template: str, product: ExtractedProduct) -> str:
         "extraction_hint": product.extraction_hint or "",
     }
     try:
-        return template.format(**format_values)
+        rendered_template = template.format(**format_values).strip()
     except KeyError as exc:
         missing = str(exc).strip("'")
         raise ValueError(f"Unknown placeholder in assessment prompt template: {missing}") from exc
+
+    sections: list[str] = [rendered_template]
+
+    sections.append(
+        "Antwortformat (nur JSON, keine Markdown-Blöcke): "
+        '{"risikostufe":1,"preisänderung_prozent":12.5,"begründung":"..."}'
+    )
+    sections.append(
+        "Regeln: risikostufe muss eine Ganzzahl von 1 bis 10 sein; "
+        "preisänderung_prozent muss eine einzelne Zahl sein; "
+        "begründung muss ein einzelner String sein."
+    )
+
+    return "\n\n".join(section for section in sections if section)
