@@ -95,9 +95,9 @@ def _normalized_status(value: Any) -> ExtractionStatus:
     if normalized is None:
         return "confirmed"
     lowered = normalized.lower()
-    if lowered == "confirmed":
+    if lowered in {"confirmed", "extracted"}:
         return "confirmed"
-    if lowered == "uncertain":
+    if lowered in {"uncertain", "unclear"}:
         return "uncertain"
     raise ParsingError("Field 'extraction_status' must be either 'confirmed' or 'uncertain'.")
 
