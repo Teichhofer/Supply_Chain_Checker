@@ -24,9 +24,18 @@ Die Verarbeitung ist in zwei voneinander getrennte CLI-Schritte aufgeteilt:
    - Schreibt Bewertungs-CSV nach `data/output`.
    - Gibt Bewertungsergebnisse zusätzlich in der Konsole aus.
 
+Zusätzlich gibt es zwei Hilfs-Subcommands:
+
+3. **`run`**
+   - Führt `extract` und `assess` in einem Durchlauf nacheinander aus.
+
+4. **`clear`**
+   - Löscht Logs, Ausgabedateien und Statusdateien (entsprechend der konfigurierten Pfade).
+   - Geeignet für einen vollständigen Reset vor einem frischen Testlauf.
+
 ### Wichtige Module (src/supply_chain_checker)
 
-- `cli.py`: CLI-Einstiegspunkt (`extract`, `assess`) und Run-Orchestrierung.
+- `cli.py`: CLI-Einstiegspunkt (`extract`, `assess`, `run`, `clear`) und Run-Orchestrierung.
 - `config.py`: Laden und Validieren der YAML-Konfiguration.
 - `logging_setup.py`: Logging-Konfiguration inkl. Run-ID-bezogener Logs.
 - `services/pdf_reader.py`: Direkte PDF-Extraktion + OCR-Fallback.
@@ -110,6 +119,8 @@ Nach Installation via `pip install -e .` sind beide Varianten ausführbar.
 ```bash
 supply-chain-checker extract --config config/config.yaml
 supply-chain-checker assess --config config/config.yaml
+supply-chain-checker run --config config/config.yaml
+supply-chain-checker clear --config config/config.yaml
 ```
 
 ### Variante B: Modulaufruf
@@ -117,9 +128,15 @@ supply-chain-checker assess --config config/config.yaml
 ```bash
 python -m supply_chain_checker extract --config config/config.yaml
 python -m supply_chain_checker assess --config config/config.yaml
+python -m supply_chain_checker run --config config/config.yaml
+python -m supply_chain_checker clear --config config/config.yaml
 ```
 
 > Hinweis: Für einen echten End-to-End-Lauf müssen PDFs in `data/input` liegen und `OPENAI_API_KEY` gesetzt sein.
+>  
+> Hinweis zu `clear`: Das Kommando entfernt die in der Konfiguration referenzierten Verzeichnisse
+> für Logs (`paths.logs_dir`), Output (`paths.output_dir`) und Status (`paths.state_dir`).
+> Verwende es nur, wenn diese Artefakte bewusst gelöscht werden sollen.
 
 ---
 
