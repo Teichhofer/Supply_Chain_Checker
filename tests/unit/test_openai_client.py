@@ -18,6 +18,7 @@ from supply_chain_checker.services.llm.base import (
     LlmServiceError,
     LlmTimeoutError,
 )
+from supply_chain_checker.logging_setup import setup_logging
 from supply_chain_checker.services.llm.openai_client import OpenAIAdapterConfig, OpenAIClient
 
 
@@ -82,6 +83,28 @@ def test_openai_client_returns_assessment_response_on_success(
     )
 
     assert response == "assessment for assess prompt"
+
+
+def test_openai_client_logs_prompt_and_response_in_llm_log(
+    adapter_config: OpenAIAdapterConfig, tmp_path
+) -> None:
+    setup_logging(logs_dir=tmp_path, level="INFO", run_id="run123", file_name="app.log")
+    client = OpenAIClient(
+        config=adapter_config,
+        extraction_invoker=lambda prompt: f"response for {prompt}",
+    )
+
+    response = client.extract_products(
+        prompt="extract prompt",
+        context=LlmRequestContext(run_id="run123", command="extract"),
+    )
+
+    assert response == "response for extract prompt"
+    llm_log_content = (tmp_path / "app_llm.log").read_text(encoding="utf-8")
+    assert "direction=request" in llm_log_content
+    assert "payload=extract prompt" in llm_log_content
+    assert "direction=response" in llm_log_content
+    assert "payload=response for extract prompt" in llm_log_content
 
 
 def test_openai_client_preserves_domain_specific_assessment_errors(

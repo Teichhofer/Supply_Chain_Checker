@@ -51,3 +51,17 @@ def test_setup_logging_closes_previous_file_handlers(tmp_path) -> None:
     assert previous_file_handlers
     for handler in previous_file_handlers:
         assert handler.stream is None
+
+
+def test_setup_logging_writes_llm_communication_into_dedicated_log_file(tmp_path) -> None:
+    setup_logging(logs_dir=tmp_path, level="WARNING", run_id="run-789", file_name="app.log")
+
+    llm_logger = logging.getLogger("supply_chain_checker.llm_communication")
+    llm_logger.info(
+        "llm.communication direction=request operation=assessment attempt=1 payload=Ping"
+    )
+
+    llm_log_content = (tmp_path / "app_llm.log").read_text(encoding="utf-8")
+    assert "llm.communication" in llm_log_content
+    assert "payload=Ping" in llm_log_content
+    assert "run_id=run-789" in llm_log_content
