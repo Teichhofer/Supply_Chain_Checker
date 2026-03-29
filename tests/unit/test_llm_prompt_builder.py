@@ -92,7 +92,8 @@ def test_build_assessment_prompt_defaults_optional_fields_to_empty_string() -> N
         ),
     )
 
-    assert prompt == "Manufacturer=; Article=; Hint="
+    assert "Manufacturer=; Article=; Hint=" in prompt
+    assert "Antwortformat (nur JSON, keine Markdown-Blöcke):" in prompt
 
 
 def test_build_assessment_prompt_raises_for_unknown_placeholders() -> None:
