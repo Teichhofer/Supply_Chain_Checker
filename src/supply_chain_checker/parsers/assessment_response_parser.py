@@ -27,8 +27,9 @@ def parse_assessment_response(
 ) -> ParsedAssessment:
     """Parse and validate one LLM assessment response."""
 
+    normalized_response_text = _normalize_json_payload_text(response_text)
     try:
-        payload = json.loads(response_text)
+        payload = json.loads(normalized_response_text)
     except json.JSONDecodeError as exc:
         raise ParsingError("LLM assessment response is not valid JSON.") from exc
 
@@ -42,6 +43,31 @@ def parse_assessment_response(
         price_change_percent=price_change_percent,
         reason=reason,
     )
+
+
+def _normalize_json_payload_text(response_text: str) -> str:
+    normalized = response_text.strip()
+    if not normalized:
+        return normalized
+
+    fence_match = re.search(r"```(?:json)?\s*(.*?)\s*```", normalized, flags=re.IGNORECASE | re.DOTALL)
+    if fence_match is not None:
+        fenced_payload = fence_match.group(1).strip()
+        if fenced_payload:
+            return fenced_payload
+
+    json_start = min(
+        [index for index in (normalized.find("{"), normalized.find("[")) if index != -1],
+        default=-1,
+    )
+    if json_start == -1:
+        return normalized
+
+    json_end = max(normalized.rfind("}"), normalized.rfind("]"))
+    if json_end == -1 or json_end < json_start:
+        return normalized
+
+    return normalized[json_start : json_end + 1]
 
 
 def _extract_assessment_payload(payload: Any) -> dict[str, Any]:
