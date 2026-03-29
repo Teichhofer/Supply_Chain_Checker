@@ -234,6 +234,16 @@ class OpenAIClient(LlmGateway):
     def _raise_http_error(self, error: HTTPError) -> None:
         status_code = error.code
         if status_code == HTTPStatus.UNAUTHORIZED:
+            api_key_suffix = self._masked_api_key_suffix()
+            logger.warning(
+                "llm.authentication.failed api_key_suffix=%s",
+                api_key_suffix,
+                extra={
+                    "event": "llm.authentication.failed",
+                    "error_type": LlmAuthenticationError.__name__,
+                    "api_key_suffix": api_key_suffix,
+                },
+            )
             raise LlmAuthenticationError("OpenAI authentication failed.") from error
         if status_code == HTTPStatus.TOO_MANY_REQUESTS:
             raise LlmRateLimitError("OpenAI rate limit exceeded.") from error
@@ -245,6 +255,13 @@ class OpenAIClient(LlmGateway):
         }:
             raise LlmServiceError(f"OpenAI temporary service error: {status_code}.") from error
         raise LlmClientError(f"OpenAI request failed with status code {status_code}.") from error
+
+    def _masked_api_key_suffix(self) -> str:
+        if not self._api_key:
+            return "missing"
+        if len(self._api_key) <= 4:
+            return self._api_key
+        return self._api_key[-4:]
 
     def _log_failure(
         self,

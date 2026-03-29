@@ -141,9 +141,9 @@ def test_openai_client_raises_configuration_error_without_api_key(
 
 
 def test_openai_client_maps_unauthorized_http_error(
-    monkeypatch, adapter_config: OpenAIAdapterConfig
+    monkeypatch, adapter_config: OpenAIAdapterConfig, caplog
 ) -> None:
-    client = OpenAIClient(config=adapter_config, api_key="test-key")
+    client = OpenAIClient(config=adapter_config, api_key="sk-test-key-1234")
 
     def _raise_http_error(*_args: object, **_kwargs: object):
         raise HTTPError(
@@ -158,12 +158,19 @@ def test_openai_client_maps_unauthorized_http_error(
         "supply_chain_checker.services.llm.openai_client.urlopen", _raise_http_error
     )
 
-    with pytest.raises(LlmAuthenticationError, match="authentication failed"):
-        client.extract_products(
-            prompt="extract prompt",
-            context=LlmRequestContext(run_id="run123", command="extract"),
-        )
+    with caplog.at_level("WARNING"):
+        with pytest.raises(LlmAuthenticationError, match="authentication failed"):
+            client.extract_products(
+                prompt="extract prompt",
+                context=LlmRequestContext(run_id="run123", command="extract"),
+            )
 
+    assert "llm.authentication.failed api_key_suffix=1234" in caplog.text
+    auth_failure_records = [
+        record for record in caplog.records if record.message.startswith("llm.authentication.failed")
+    ]
+    assert auth_failure_records
+    assert auth_failure_records[0].api_key_suffix == "1234"
 
 def test_openai_client_retries_transient_errors_and_succeeds(
     monkeypatch,
