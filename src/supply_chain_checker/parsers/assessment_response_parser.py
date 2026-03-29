@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 from dataclasses import dataclass
 from typing import Any, cast
 
 from supply_chain_checker.parsers.product_extraction_parser import ParsingError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -27,16 +30,36 @@ def parse_assessment_response(
 ) -> ParsedAssessment:
     """Parse and validate one LLM assessment response."""
 
+    logger.debug(
+        "assessment.parsing.started",
+        extra={
+            "event": "assessment.parsing.started",
+        },
+    )
+
     normalized_response_text = _normalize_json_payload_text(response_text)
     try:
         payload = json.loads(normalized_response_text)
     except json.JSONDecodeError as exc:
+        _log_parsing_failure(message="LLM assessment response is not valid JSON.")
         raise ParsingError("LLM assessment response is not valid JSON.") from exc
 
-    raw_assessment = _extract_assessment_payload(payload)
-    risk_level = _parse_risk_level(raw_assessment.get("risikostufe"))
-    price_change_percent = _parse_price_change_percent(raw_assessment.get("preisänderung_prozent"))
-    reason = _parse_reason(raw_assessment.get("begründung"), max_reason_words=max_reason_words)
+    try:
+        raw_assessment = _extract_assessment_payload(payload)
+        risk_level = _parse_risk_level(raw_assessment.get("risikostufe"))
+        price_change_percent = _parse_price_change_percent(raw_assessment.get("preisänderung_prozent"))
+        reason = _parse_reason(raw_assessment.get("begründung"), max_reason_words=max_reason_words)
+    except ParsingError as exc:
+        _log_parsing_failure(message=str(exc))
+        raise
+
+    logger.debug(
+        "assessment.parsing.succeeded",
+        extra={
+            "event": "assessment.parsing.succeeded",
+            "risk_level": risk_level,
+        },
+    )
 
     return ParsedAssessment(
         risk_level=risk_level,
@@ -164,6 +187,17 @@ def _parse_reason(value: Any, *, max_reason_words: int) -> str:
         raise ParsingError(f"Field 'begründung' must have at most {max_reason_words} words.")
 
     return normalized
+
+
+def _log_parsing_failure(*, message: str) -> None:
+    logger.warning(
+        "assessment.parsing.failed",
+        extra={
+            "event": "assessment.parsing.failed",
+            "error_type": ParsingError.__name__,
+            "error_message": message,
+        },
+    )
 
 
 __all__ = ["ParsedAssessment", "parse_assessment_response", "ParsingError"]

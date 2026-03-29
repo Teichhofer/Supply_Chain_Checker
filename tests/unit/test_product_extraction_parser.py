@@ -147,3 +147,31 @@ def test_parser_excludes_versand_positions_from_extracted_products() -> None:
 
     assert len(products) == 1
     assert products[0].product_name == "Copper Wire"
+
+
+def test_parser_logs_skip_and_success_events_for_non_product_positions(caplog) -> None:
+    response = (
+        '{"products": ['
+        '{"product_name":"Versandkosten", "quantity":"1", "supplier":"ACME"},'
+        '{"product_name":"Copper Wire", "quantity":"20m", "supplier":"ACME"}'
+        "]}"
+    )
+
+    with caplog.at_level(logging.INFO):
+        parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+    skipped = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "extraction.parsing.product.skipped"
+    ]
+    succeeded = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "extraction.parsing.succeeded"
+    ]
+
+    assert len(skipped) == 1
+    assert skipped[0].product_name == "Versandkosten"
+    assert len(succeeded) == 1
+    assert succeeded[0].parsed_product_count == 1

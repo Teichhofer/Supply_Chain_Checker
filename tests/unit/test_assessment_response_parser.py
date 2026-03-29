@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from supply_chain_checker.parsers import ParsingError, parse_assessment_response
@@ -193,3 +195,17 @@ def test_parse_assessment_response_rejects_blank_reason() -> None:
         parse_assessment_response(
             response_text='{"risikostufe": 3, "preisänderung_prozent": 1.5, "begründung": "   "}'
         )
+
+
+def test_parse_assessment_response_logs_parsing_error_with_error_type(caplog) -> None:
+    with caplog.at_level(logging.WARNING), pytest.raises(ParsingError):
+        parse_assessment_response(response_text="{invalid")
+
+    relevant = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "assessment.parsing.failed"
+    ]
+    assert len(relevant) == 1
+    assert relevant[0].error_type == "ParsingError"
+    assert "valid JSON" in relevant[0].error_message
