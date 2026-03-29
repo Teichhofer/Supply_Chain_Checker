@@ -1,12 +1,11 @@
-"""Tests for extraction CSV writing."""
+"""Tests for extraction XLSX writing."""
 
 from __future__ import annotations
 
-import csv
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pytest
+from openpyxl import load_workbook
 
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.run_context import RunContext
@@ -31,19 +30,18 @@ def test_write_extraction_products_csv_creates_one_run_bound_csv_with_required_c
         )
     ]
 
-    csv_path = write_extraction_products_csv(
+    xlsx_path = write_extraction_products_csv(
         output_dir=tmp_path,
         run_context=run_context,
         products=products,
     )
 
-    assert csv_path.name == "extraction_20260327T123000Z_run123abc456.csv"
+    assert xlsx_path.name == "extraction_20260327T123000Z_run123abc456.xlsx"
 
-    with csv_path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        rows = list(reader)
+    workbook = load_workbook(xlsx_path, read_only=True, data_only=True)
+    rows = list(workbook.active.iter_rows(values_only=True))
 
-    assert reader.fieldnames == [
+    assert list(rows[0]) == [
         "run_id",
         "document_name",
         "product_name",
@@ -54,9 +52,9 @@ def test_write_extraction_products_csv_creates_one_run_bound_csv_with_required_c
         "extraction_status",
         "extraction_hint",
     ]
-    assert len(rows) == 1
-    assert rows[0]["run_id"] == "run123abc456"
-    assert rows[0]["extraction_status"] == "uncertain"
+    assert len(rows) == 2
+    assert rows[1][0] == "run123abc456"
+    assert rows[1][7] == "uncertain"
 
 
 def test_write_extraction_products_csv_raises_storage_io_error_on_os_error(
@@ -67,12 +65,12 @@ def test_write_extraction_products_csv_raises_storage_io_error_on_os_error(
         started_at_utc=datetime(2026, 3, 27, 12, 30, tzinfo=UTC),
     )
 
-    def _raise_open_error(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def _raise_save(self, _path):
         raise OSError("disk full")
 
-    monkeypatch.setattr(Path, "open", _raise_open_error)
+    monkeypatch.setattr("openpyxl.workbook.workbook.Workbook.save", _raise_save)
 
-    with pytest.raises(StorageIOError, match="Could not write extraction CSV"):
+    with pytest.raises(StorageIOError, match="Could not write extraction XLSX"):
         write_extraction_products_csv(
             output_dir=tmp_path,
             run_context=run_context,

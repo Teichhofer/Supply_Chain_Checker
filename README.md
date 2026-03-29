@@ -15,13 +15,13 @@ Die Verarbeitung ist in zwei voneinander getrennte CLI-Schritte aufgeteilt:
    - Versucht zuerst direkte Textextraktion.
    - Nutzt OCR nur bei fehlendem/brauchbarem Text.
    - Extrahiert Produkte per LLM.
-   - Schreibt Ergebnisse als Extraktions-CSV nach `data/output`.
+   - Schreibt Ergebnisse als Extraktions-XLSX nach `data/output`.
    - Markiert verarbeitete Dokumente in der Statusdatei.
 
 2. **`assess`**
-   - Nimmt die neueste Extraktions-CSV aus `data/output`.
+   - Nimmt die neueste Extraktions-XLSX aus `data/output`.
    - Bewertet jedes Produkt einzeln per LLM.
-   - Schreibt Bewertungs-CSV nach `data/output`.
+   - Schreibt Bewertungs-XLSX nach `data/output`.
    - Gibt Bewertungsergebnisse zusätzlich in der Konsole aus.
 
 Zusätzlich gibt es zwei Hilfs-Subcommands:
@@ -42,7 +42,7 @@ Zusätzlich gibt es zwei Hilfs-Subcommands:
 - `services/ocr_service.py`: OCR-Anbindung (gekapselt).
 - `services/extraction_service.py`: Dokumentweise Produktextraktion.
 - `services/assessment_service.py`: Produktweise Risikobewertung.
-- `services/csv_service.py`: Lesen/Schreiben von Extraktions- und Bewertungs-CSVs.
+- `services/csv_service.py`: Lesen/Schreiben von Extraktions- und Bewertungs-XLSXs.
 - `services/status_service.py`: Tracking bereits verarbeiteter PDFs.
 - `services/llm/openai_client.py`: OpenAI-Adapter für LLM-Aufrufe.
 - `parsers/*`: Parser für LLM-Antwortformate.
@@ -102,7 +102,7 @@ source config/secrets.env
 ### Bedeutung der Verzeichnisse
 
 - `data/input`: Neue, zu verarbeitende PDFs.
-- `data/output`: Laufbezogene CSV-Artefakte (`extraction_*.csv`, `assessment_*.csv`).
+- `data/output`: Laufbezogene XLSX-Artefakte (`extraction_*.xlsx`, `assessment_*.xlsx`).
 - `data/state`: Statusdateien (z. B. bereits verarbeitete PDFs).
 - `logs`: Laufbezogene Logdateien.
 
@@ -162,7 +162,7 @@ python -m supply_chain_checker clear --config config/config.yaml
    supply-chain-checker assess --config config/config.yaml
    ```
 7. Ergebnisse prüfen:
-   - CSVs in `data/output`
+   - XLSX-Dateien in `data/output`
    - Logs in `logs`
 
 ---
@@ -186,7 +186,7 @@ Das Projekt ist modular vorbereitet. Typische Erweiterungen:
 
 - **Weitere LLM-Provider**: neuen Adapter unter `services/llm/` ergänzen.
 - **Alternative OCR-Backends**: `ocr_service.py` austauschbar erweitern.
-- **Zusätzliche Ausgabeziele**: neben CSV z. B. API/DB-Writer ergänzen.
+- **Zusätzliche Ausgabeziele**: neben XLSX z. B. API/DB-Writer ergänzen.
 - **Neue Parsing-Strategien**: Parser in `parsers/` erweitern.
 - **Zusätzliche CLI-Kommandos**: Subcommands in `cli.py` ergänzen.
 
@@ -229,7 +229,7 @@ Das Projekt ist modular vorbereitet. Typische Erweiterungen:
 2. Prüfen, ob `OPENAI_API_KEY` gesetzt ist.
 3. Prüfen, ob Eingabedateien in `data/input` liegen.
 4. Letzte Logdatei in `logs/` auf `ERROR`/`WARNING` und Eventnamen prüfen.
-5. Prüfen, ob in `data/output` neue CSV-Artefakte erstellt wurden.
+5. Prüfen, ob in `data/output` neue XLSX-Artefakte erstellt wurden.
 6. Bei OCR-/Parsing-Problemen zuerst mit einem kleinen, gut lesbaren Test-PDF reproduzieren.
 
 ---

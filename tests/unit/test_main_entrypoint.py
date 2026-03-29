@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from runpy import run_module
 
+from openpyxl import Workbook
+
 
 def test_module_main_executes(monkeypatch, capsys, tmp_path) -> None:
     config_file = tmp_path / "config.yaml"
@@ -36,10 +38,11 @@ def test_module_main_executes(monkeypatch, capsys, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T120000Z_run123abc456.csv").write_text(
-        "run_id,document_name\nrun123,invoice.pdf\n",
-        encoding="utf-8",
-    )
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["run_id", "document_name", "product_name", "quantity", "supplier", "manufacturer", "article_number", "extraction_status", "extraction_hint"])
+    sheet.append(["run123", "invoice.pdf", "Widget", "1", "ACME", "", "", "confirmed", ""])
+    workbook.save(output_dir / "extraction_20260327T120000Z_run123abc456.xlsx")
     monkeypatch.setattr(
         "sys.argv", ["supply_chain_checker", "assess", "--config", str(config_file)]
     )

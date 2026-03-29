@@ -12,6 +12,8 @@ import pytest
 
 from supply_chain_checker import cli
 from supply_chain_checker.models import ExtractedProduct
+from openpyxl import Workbook, load_workbook
+
 from supply_chain_checker.services.csv_service import StorageIOError
 from supply_chain_checker.services.llm.base import LlmConfigurationError
 from supply_chain_checker.services.pdf_reader import PdfProcessingError
@@ -41,6 +43,30 @@ parameters:
   max_assessment_reason_words: 100
   on_corrupt_status_file: abort
 """
+
+
+
+def _write_extraction_xlsx(path: Path, rows: list[list[str]]) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append([
+        "run_id",
+        "document_name",
+        "product_name",
+        "quantity",
+        "supplier",
+        "manufacturer",
+        "article_number",
+        "extraction_status",
+        "extraction_hint",
+    ])
+    for row in rows:
+        sheet.append(row)
+    workbook.save(path)
+
+
+def _read_xlsx_rows(path: Path) -> list[tuple[object, ...]]:
+    return list(load_workbook(path, read_only=True, data_only=True).active.iter_rows(values_only=True))
 
 _FALLBACK_STATUS_CONFIG = """
 paths:
@@ -134,12 +160,12 @@ def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, ca
     assert run_id_match is not None
     run_id = run_id_match.group(1)
 
-    output_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    output_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
     assert len(output_files) == 1
 
-    artifact_content = output_files[0].read_text(encoding="utf-8")
-    assert "run_id" in artifact_content
-    assert run_id in artifact_content
+    rows = _read_xlsx_rows(output_files[0])
+    assert rows[0][0] == "run_id"
+    assert rows[1][0] == run_id
 
 
 
@@ -157,7 +183,7 @@ def test_main_clear_deletes_logs_output_and_state_directories(
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "artifact.csv").write_text("csv", encoding="utf-8")
+    (output_dir / "artifact.xlsx").write_text("csv", encoding="utf-8")
 
     state_dir = tmp_path / "data" / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -311,24 +337,21 @@ def test_main_run_executes_extract_then_assess(monkeypatch, tmp_path: Path) -> N
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T100000Z_olderrun1234.csv").write_text(
-        "run_id\nold\n",
-        encoding="utf-8",
-    )
+    _write_extraction_xlsx(output_dir / "extraction_20260327T100000Z_olderrun1234.xlsx", [])
 
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "run", "--config", str(config_file)]
     )
     assert cli.main() == 0
 
-    extract_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
-    assess_files = list((tmp_path / "data" / "output").glob("assessment_*.csv"))
+    extract_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
+    assess_files = list((tmp_path / "data" / "output").glob("assessment_*.xlsx"))
 
     assert len(extract_files) >= 1
     assert len(assess_files) == 1
     assert all(extract_file.name != assess_files[0].name for extract_file in extract_files)
 
-def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: Path) -> None:
+def test_main_creates_distinct_xlsx_artifacts_per_command(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"
@@ -336,10 +359,7 @@ def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: 
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T100000Z_olderrun1234.csv").write_text(
-        "run_id\nold\n",
-        encoding="utf-8",
-    )
+    _write_extraction_xlsx(output_dir / "extraction_20260327T100000Z_olderrun1234.xlsx", [])
 
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
@@ -351,15 +371,15 @@ def test_main_creates_distinct_csv_artifacts_per_command(monkeypatch, tmp_path: 
     )
     assert cli.main() == 0
 
-    extract_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
-    assess_files = list((tmp_path / "data" / "output").glob("assessment_*.csv"))
+    extract_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
+    assess_files = list((tmp_path / "data" / "output").glob("assessment_*.xlsx"))
 
     assert len(extract_files) >= 1
     assert len(assess_files) == 1
     assert all(extract_file.name != assess_files[0].name for extract_file in extract_files)
 
 
-def test_main_assess_raises_clear_error_when_no_extraction_csv_exists(
+def test_main_assess_raises_clear_error_when_no_extraction_xlsx_exists(
     monkeypatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -548,15 +568,16 @@ def test_main_extract_continues_after_single_document_failure(monkeypatch, tmp_p
 
     assert cli.main() == 0
 
-    output_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    output_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
     assert len(output_files) == 1
 
-    csv_payload = output_files[0].read_text(encoding="utf-8")
-    assert "broken.pdf" in csv_payload
-    assert "partial.pdf" in csv_payload
-    assert "uncertain" in csv_payload
-    assert "Document processing failed: PdfProcessingError" in csv_payload
-    assert "Missing required fields: quantity, supplier" in csv_payload
+    rows = _read_xlsx_rows(output_files[0])
+    text_dump = "\n".join("|".join(str(cell or "") for cell in row) for row in rows)
+    assert "broken.pdf" in text_dump
+    assert "partial.pdf" in text_dump
+    assert "uncertain" in text_dump
+    assert "Document processing failed: PdfProcessingError" in text_dump
+    assert "Missing required fields: quantity, supplier" in text_dump
 
     status_file = tmp_path / "data" / "state" / "processed_files.json"
     payload = json.loads(status_file.read_text(encoding="utf-8"))
@@ -622,10 +643,7 @@ def test_main_assess_marks_unprocessed_pdfs_as_processed(monkeypatch, tmp_path: 
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T100000Z_run1234567890.csv").write_text(
-        "run_id\nold\n",
-        encoding="utf-8",
-    )
+    _write_extraction_xlsx(output_dir / "extraction_20260327T100000Z_run1234567890.xlsx", [])
 
     monkeypatch.setattr(
         "sys.argv", ["supply-chain-checker", "assess", "--config", str(config_file)]
@@ -647,7 +665,7 @@ def test_invoke_assessment_llm_placeholder_raises_clear_runtime_error() -> None:
         cli._invoke_assessment_llm_placeholder("prompt")
 
 
-def test_main_assess_keeps_skipped_products_in_output_csv(monkeypatch, tmp_path: Path) -> None:
+def test_main_assess_keeps_skipped_products_in_output_xlsx(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"
@@ -655,14 +673,9 @@ def test_main_assess_keeps_skipped_products_in_output_csv(monkeypatch, tmp_path:
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T100000Z_run1234567890.csv").write_text(
-        "\n".join(
-            [
-                "run_id,document_name,product_name,quantity,supplier,manufacturer,article_number,extraction_status,extraction_hint",
-                "run123,invoice_1.pdf,UNKNOWN,10,ACME,,,uncertain,",
-            ]
-        ),
-        encoding="utf-8",
+    _write_extraction_xlsx(
+        output_dir / "extraction_20260327T100000Z_run1234567890.xlsx",
+        [["run123", "invoice_1.pdf", "UNKNOWN", "10", "ACME", "", "", "uncertain", ""]],
     )
 
     monkeypatch.setattr(
@@ -670,11 +683,12 @@ def test_main_assess_keeps_skipped_products_in_output_csv(monkeypatch, tmp_path:
     )
     assert cli.main() == 0
 
-    assessment_files = list(output_dir.glob("assessment_*.csv"))
+    assessment_files = list(output_dir.glob("assessment_*.xlsx"))
     assert len(assessment_files) == 1
-    csv_payload = assessment_files[0].read_text(encoding="utf-8")
-    assert "skipped" in csv_payload
-    assert "UNCONFIRMED_EXTRACTION" in csv_payload
+    rows = _read_xlsx_rows(assessment_files[0])
+    text_dump = "\n".join("|".join(str(cell or "") for cell in row) for row in rows)
+    assert "skipped" in text_dump
+    assert "UNCONFIRMED_EXTRACTION" in text_dump
 
 
 def test_main_assess_prints_operational_console_summary(
@@ -689,14 +703,9 @@ def test_main_assess_prints_operational_console_summary(
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T100000Z_run1234567890.csv").write_text(
-        "\n".join(
-            [
-                "run_id,document_name,product_name,quantity,supplier,manufacturer,article_number,extraction_status,extraction_hint",
-                "run123,invoice_1.pdf,UNKNOWN,10,ACME,,,uncertain,",
-            ]
-        ),
-        encoding="utf-8",
+    _write_extraction_xlsx(
+        output_dir / "extraction_20260327T100000Z_run1234567890.xlsx",
+        [["run123", "invoice_1.pdf", "UNKNOWN", "10", "ACME", "", "", "uncertain", ""]],
     )
 
     monkeypatch.setattr(
@@ -713,7 +722,7 @@ def test_main_assess_prints_operational_console_summary(
     assert "Status: skipped (UNCONFIRMED_EXTRACTION)" in stdout
 
 
-def test_main_assess_writes_new_csv_for_each_run(monkeypatch, tmp_path: Path) -> None:
+def test_main_assess_writes_new_xlsx_for_each_run(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"
@@ -721,14 +730,9 @@ def test_main_assess_writes_new_csv_for_each_run(monkeypatch, tmp_path: Path) ->
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "extraction_20260327T100000Z_run1234567890.csv").write_text(
-        "\n".join(
-            [
-                "run_id,document_name,product_name,quantity,supplier,manufacturer,article_number,extraction_status,extraction_hint",
-                "run123,invoice_1.pdf,UNKNOWN,10,ACME,,,uncertain,",
-            ]
-        ),
-        encoding="utf-8",
+    _write_extraction_xlsx(
+        output_dir / "extraction_20260327T100000Z_run1234567890.xlsx",
+        [["run123", "invoice_1.pdf", "UNKNOWN", "10", "ACME", "", "", "uncertain", ""]],
     )
 
     monkeypatch.setattr(
@@ -741,7 +745,7 @@ def test_main_assess_writes_new_csv_for_each_run(monkeypatch, tmp_path: Path) ->
     )
     assert cli.main() == 0
 
-    assessment_files = list(output_dir.glob("assessment_*.csv"))
+    assessment_files = list(output_dir.glob("assessment_*.xlsx"))
     assert len(assessment_files) == 2
     assert assessment_files[0].name != assessment_files[1].name
 
