@@ -73,10 +73,16 @@ def test_build_parser_supports_extract_assess_and_run() -> None:
     extract_args = parser.parse_args(["extract", "--config", "config/config.yaml"])
     assess_args = parser.parse_args(["assess", "--config", "config/config.yaml"])
     run_args = parser.parse_args(["run", "--config", "config/config.yaml"])
+    extract_default_args = parser.parse_args(["extract"])
+    assess_default_args = parser.parse_args(["assess"])
+    run_default_args = parser.parse_args(["run"])
 
     assert extract_args.command == "extract"
     assert assess_args.command == "assess"
     assert run_args.command == "run"
+    assert extract_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
+    assert assess_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
+    assert run_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
 
 
 
@@ -84,8 +90,22 @@ def test_build_parser_supports_clear() -> None:
     parser = cli._build_parser()
 
     clear_args = parser.parse_args(["clear", "--config", "config/config.yaml"])
+    clear_default_args = parser.parse_args(["clear"])
 
     assert clear_args.command == "clear"
+    assert clear_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
+
+
+def test_main_uses_default_config_path_when_not_provided(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "extract"])
+
+    assert cli.main() == 0
 
 
 def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, capsys) -> None:
