@@ -14,7 +14,7 @@ from supply_chain_checker.services.llm import (
     LlmRequestContext,
     build_assessment_prompt,
 )
-from supply_chain_checker.services.llm.base import LlmClientError
+from supply_chain_checker.services.llm.base import LlmClientError, LlmConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,19 @@ class AssessmentService:
                     prompt=prompt,
                     context=LlmRequestContext(run_id=run_id, command=command),
                 )
+            except LlmConfigurationError as exc:
+                logger.error(
+                    "assessment.command.failed",
+                    extra={
+                        "event": "assessment.command.failed",
+                        "run_id": run_id,
+                        "command": command,
+                        "document_name": product.document_name,
+                        "product_name": product.product_name,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                raise
             except LlmClientError as exc:
                 logger.warning(
                     "assessment.failed",

@@ -12,6 +12,7 @@ import pytest
 from supply_chain_checker import cli
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.services.csv_service import StorageIOError
+from supply_chain_checker.services.llm.base import LlmConfigurationError
 from supply_chain_checker.services.pdf_reader import PdfProcessingError
 from supply_chain_checker.services.status_service import StatusTrackingError
 
@@ -628,3 +629,28 @@ def test_print_assessment_console_results_handles_empty_results(capsys) -> None:
     output = capsys.readouterr().out
     assert "Assessment results" in output
     assert "- keine Produkte vorhanden" in output
+
+
+def test_main_extract_aborts_on_llm_configuration_errors(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    input_dir = tmp_path / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "invoice_a.pdf").write_text("dummy", encoding="utf-8")
+
+    class _MisconfiguredExtractionService:
+        def extract_products_from_document(self, **_kwargs: object) -> list[ExtractedProduct]:
+            raise LlmConfigurationError("OPENAI_API_KEY is required")
+
+    monkeypatch.setattr(
+        cli, "_build_extraction_service", lambda **_kwargs: _MisconfiguredExtractionService()
+    )
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "extract", "--config", str(config_file)]
+    )
+
+    with pytest.raises(LlmConfigurationError, match="OPENAI_API_KEY"):
+        cli.main()
