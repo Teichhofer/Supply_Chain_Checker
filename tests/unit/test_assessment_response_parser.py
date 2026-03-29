@@ -89,6 +89,38 @@ def test_parse_assessment_response_supports_nested_bewertung_payload() -> None:
     assert parsed.reason == "passt"
 
 
+def test_parse_assessment_response_supports_markdown_fenced_json_payload() -> None:
+    parsed = parse_assessment_response(
+        response_text=(
+            "```json\n"
+            '{\n'
+            '  "risikostufe": "5",\n'
+            '  "preisänderung_prozent": 8,\n'
+            '  "begründung": "Moderates Risiko."\n'
+            "}\n"
+            "```"
+        )
+    )
+
+    assert parsed.risk_level == 5
+    assert parsed.price_change_percent == 8.0
+    assert parsed.reason == "Moderates Risiko."
+
+
+def test_parse_assessment_response_supports_json_with_leading_and_trailing_text() -> None:
+    parsed = parse_assessment_response(
+        response_text=(
+            "Hier ist die Bewertung:\n"
+            '{"risikostufe":3,"preisänderung_prozent":"1,25","begründung":"Stabile Lage."}\n'
+            "Danke."
+        )
+    )
+
+    assert parsed.risk_level == 3
+    assert parsed.price_change_percent == 1.25
+    assert parsed.reason == "Stabile Lage."
+
+
 @pytest.mark.parametrize(
     "risk_value",
     ['""', '"abc"', "2.5", "true", "{}", "2.5e1"],
