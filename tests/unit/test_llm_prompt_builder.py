@@ -36,6 +36,22 @@ def test_build_extraction_prompt_raises_for_unknown_placeholders() -> None:
         )
 
 
+def test_build_extraction_prompt_appends_context_if_template_has_no_placeholders() -> None:
+    prompt = build_extraction_prompt(
+        template="Extrahiere Produkte.",
+        document_text="Widget A x 10",
+        document_name="invoice_42.pdf",
+        max_products_per_document=5,
+    )
+
+    assert "Extrahiere Produkte." in prompt
+    assert "Dokumentname: invoice_42.pdf" in prompt
+    assert "Maximale Produktanzahl: 5" in prompt
+    assert "Dokumenttext:" in prompt
+    assert "Widget A x 10" in prompt
+    assert "Antwortformat (nur JSON, keine Markdown-Blöcke):" in prompt
+
+
 def test_build_assessment_prompt_renders_template_with_expected_fields() -> None:
     prompt = build_assessment_prompt(
         template=(
