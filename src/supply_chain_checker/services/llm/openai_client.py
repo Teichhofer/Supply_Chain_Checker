@@ -292,12 +292,18 @@ class OpenAIClient(LlmGateway):
         attempt: int,
         payload: str,
     ) -> None:
+        label = self._communication_label(direction)
+        payload_oneline = payload.replace("\n", "\\n")
         communication_logger.info(
-            "llm.communication direction=%s operation=%s attempt=%s payload=%s",
+            "llm.communication label=%s direction=%s event=%s command=%s operation=%s attempt=%s payload_length=%s payload=%s",
+            label,
             direction,
+            "llm.communication",
+            context.command,
             operation,
             attempt,
-            payload,
+            len(payload),
+            payload_oneline,
             extra={
                 "event": "llm.communication",
                 "run_id": context.run_id,
@@ -306,5 +312,16 @@ class OpenAIClient(LlmGateway):
                 "direction": direction,
                 "attempt": attempt,
                 "payload": payload,
+                "payload_length": len(payload),
+                "label": label,
             },
         )
+
+    def _communication_label(self, direction: str) -> str:
+        if direction == "request":
+            return "REQUEST"
+        if direction == "response":
+            return "RESPONSE"
+        if direction == "error":
+            return "ERROR"
+        return "UNKNOWN"
