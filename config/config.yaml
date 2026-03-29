@@ -36,7 +36,11 @@ prompts:
     {document_text}
     Antworte ausschließlich als JSON-Liste von Objekten.
   assessment: |
-    Bewerte das Lieferkettenrisiko für das Produkt "{product_name}" für den Fall einer Eskalation des China-Taiwan-Konflikts zu einem militärischen Konflikt unter Einbeziehung der USA. Berücksichtige dabei nicht nur das eigentliche Produkt, sondern auch dafür notwendige Komponenten, Halbzeuge, Vorprodukte, Rohstoffe und kritische Zulieferabhängigkeiten entlang der Lieferkette.
+    Bewerte das Lieferkettenrisiko für das Produkt "{product_name}" für den Fall einer schweren Eskalation des China-Taiwan-Konflikts zu einem militärischen Konflikt unter Einbeziehung der USA.
+    Berücksichtige entlang der gesamten Lieferkette: Komponenten, Halbzeuge, Vorprodukte, Rohstoffe, Logistik, Energie und kritische Zulieferabhängigkeiten.
+    Gehe von einem Stressszenario aus (Sanktionen/Exportkontrollen, gestörte See- und Luftfracht, Engpässe bei Vorprodukten) und nicht von einem milden Basisszenario.
+    Gib preisänderung_prozent als plausible mittlere Beschaffungspreisänderung in den ersten 12 Monaten gegenüber dem Vorkrisenniveau an.
+    Falls die Bandbreite groß ist, wähle einen realistischen Mittelpunkt der erwarteten Spannweite.
     Antworte als JSON mit risikostufe, preisänderung_prozent und begründung.
 
 parameters:
