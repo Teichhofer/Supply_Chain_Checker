@@ -235,6 +235,7 @@ class OpenAIClient(LlmGateway):
         status_code = error.code
         if status_code == HTTPStatus.UNAUTHORIZED:
             api_key_suffix = self._masked_api_key_suffix()
+            error_message = f"OpenAI authentication failed (api_key_suffix={api_key_suffix})."
             logger.warning(
                 "llm.authentication.failed api_key_suffix=%s",
                 api_key_suffix,
@@ -244,7 +245,7 @@ class OpenAIClient(LlmGateway):
                     "api_key_suffix": api_key_suffix,
                 },
             )
-            raise LlmAuthenticationError("OpenAI authentication failed.") from error
+            raise LlmAuthenticationError(error_message) from error
         if status_code == HTTPStatus.TOO_MANY_REQUESTS:
             raise LlmRateLimitError("OpenAI rate limit exceeded.") from error
         if status_code in {

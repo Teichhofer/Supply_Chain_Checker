@@ -172,6 +172,37 @@ def test_openai_client_maps_unauthorized_http_error(
     assert auth_failure_records
     assert auth_failure_records[0].api_key_suffix == "1234"
 
+
+def test_openai_client_logs_api_key_suffix_in_llm_error_payload(
+    monkeypatch, adapter_config: OpenAIAdapterConfig, tmp_path
+) -> None:
+    setup_logging(logs_dir=tmp_path, level="INFO", run_id="run123", file_name="app.log")
+    client = OpenAIClient(config=adapter_config, api_key="sk-test-key-1234")
+
+    def _raise_http_error(*_args: object, **_kwargs: object):
+        raise HTTPError(
+            url="https://api.openai.com/v1/chat/completions",
+            code=401,
+            msg="Unauthorized",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":"unauthorized"}'),
+        )
+
+    monkeypatch.setattr(
+        "supply_chain_checker.services.llm.openai_client.urlopen", _raise_http_error
+    )
+
+    with pytest.raises(LlmAuthenticationError, match="api_key_suffix=1234"):
+        client.extract_products(
+            prompt="extract prompt",
+            context=LlmRequestContext(run_id="run123", command="extract"),
+        )
+
+    llm_log_content = (tmp_path / "app_llm.log").read_text(encoding="utf-8")
+    assert "direction=error" in llm_log_content
+    assert "payload=OpenAI authentication failed (api_key_suffix=1234)." in llm_log_content
+
+
 def test_openai_client_retries_transient_errors_and_succeeds(
     monkeypatch,
     adapter_config: OpenAIAdapterConfig,
