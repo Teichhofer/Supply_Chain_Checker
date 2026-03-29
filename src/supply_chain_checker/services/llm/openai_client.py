@@ -25,6 +25,7 @@ from supply_chain_checker.services.llm.base import (
 )
 
 logger = logging.getLogger(__name__)
+communication_logger = logging.getLogger("supply_chain_checker.llm_communication")
 
 
 @dataclass(frozen=True)
@@ -118,12 +119,35 @@ class OpenAIClient(LlmGateway):
         last_error: Exception | None = None
 
         for attempt in range(self._config.max_retries + 1):
+            self._log_communication(
+                context=context,
+                operation=operation,
+                direction="request",
+                attempt=attempt + 1,
+                payload=prompt,
+            )
             try:
                 if invoker is not None:
-                    return invoker(prompt)
-                return self._invoke_openai(prompt)
+                    response = invoker(prompt)
+                else:
+                    response = self._invoke_openai(prompt)
+                self._log_communication(
+                    context=context,
+                    operation=operation,
+                    direction="response",
+                    attempt=attempt + 1,
+                    payload=response,
+                )
+                return response
             except LlmClientError as exc:
                 last_error = exc
+                self._log_communication(
+                    context=context,
+                    operation=operation,
+                    direction="error",
+                    attempt=attempt + 1,
+                    payload=str(exc),
+                )
                 if not isinstance(exc, (LlmTimeoutError, LlmServiceError, LlmRateLimitError)):
                     self._log_failure(
                         context=context, operation=operation, error=exc, attempt=attempt
@@ -136,6 +160,13 @@ class OpenAIClient(LlmGateway):
                     raise
             except Exception as exc:  # noqa: BLE001
                 last_error = LlmClientError(f"OpenAI {operation} request failed.")
+                self._log_communication(
+                    context=context,
+                    operation=operation,
+                    direction="error",
+                    attempt=attempt + 1,
+                    payload=str(exc),
+                )
                 self._log_failure(context=context, operation=operation, error=exc, attempt=attempt)
                 raise last_error from exc
 
@@ -231,5 +262,31 @@ class OpenAIClient(LlmGateway):
                 "command": context.command,
                 "attempt": attempt + 1,
                 "error_type": type(error).__name__,
+            },
+        )
+
+    def _log_communication(
+        self,
+        *,
+        context: LlmRequestContext,
+        operation: str,
+        direction: str,
+        attempt: int,
+        payload: str,
+    ) -> None:
+        communication_logger.info(
+            "llm.communication direction=%s operation=%s attempt=%s payload=%s",
+            direction,
+            operation,
+            attempt,
+            payload,
+            extra={
+                "event": "llm.communication",
+                "run_id": context.run_id,
+                "command": context.command,
+                "operation": operation,
+                "direction": direction,
+                "attempt": attempt,
+                "payload": payload,
             },
         )
