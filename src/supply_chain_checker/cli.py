@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import logging
 import os
 import shutil
@@ -42,6 +43,7 @@ from supply_chain_checker.services.status_service import StatusService
 logger = logging.getLogger(__name__)
 DEFAULT_CONFIG_PATH = Path("config/config.yaml")
 STATUS_FILE_NAME = "processed_files.json"
+_FILE_HASH_CHUNK_SIZE = 1024 * 1024
 
 
 def _load_secrets_env(config_path: str | Path) -> None:
@@ -218,7 +220,10 @@ def main() -> int:
 
             if args.command == "assess":
                 for pdf_path in status_service.select_unprocessed_pdfs(config.paths.input_dir):
-                    status_service.mark_processed(pdf_path.name)
+                    status_service.mark_processed(
+                        pdf_path.name,
+                        file_hash=_calculate_file_sha256(pdf_path),
+                    )
 
             status_service.persist()
     finally:
@@ -330,7 +335,10 @@ def _run_extract_command(
                     "product_count": len(document_products),
                 },
             )
-            status_service.mark_processed_and_persist(pdf_path.name)
+            status_service.mark_processed_and_persist(
+                pdf_path.name,
+                file_hash=_calculate_file_sha256(pdf_path),
+            )
         except LlmConfigurationError as exc:
             logger.error(
                 "extraction.command.failed",
@@ -461,6 +469,18 @@ def _print_assessment_console_results(*, results: list[ProductAssessmentResult])
             f"Preisänderung: {price_change} | "
             f"Status: {result.assessment_status} ({status_detail})"
         )
+
+
+def _calculate_file_sha256(file_path: Path) -> str:
+    """Return a deterministic SHA-256 hash for the given file."""
+
+    hash_builder = hashlib.sha256()
+    with file_path.open("rb") as file_handle:
+        while chunk := file_handle.read(_FILE_HASH_CHUNK_SIZE):
+            hash_builder.update(chunk)
+    return hash_builder.hexdigest()
+
+
 def _run_ocr_placeholder(pdf_path: Path) -> str:
     raise RuntimeError(f"OCR backend is not configured for '{pdf_path.name}'.")
 

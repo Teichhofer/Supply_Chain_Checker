@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import stat
@@ -432,9 +433,12 @@ def test_main_reads_and_updates_status_file(monkeypatch, tmp_path: Path) -> None
     status_file = tmp_path / "data" / "state" / "processed_files.json"
     assert status_file.exists()
 
-    payload = status_file.read_text(encoding="utf-8")
-    assert '"file_name": "invoice_a.pdf"' in payload
-    assert '"processed_at_utc":' in payload
+    payload = json.loads(status_file.read_text(encoding="utf-8"))
+    assert payload["processed_files"][0]["file_name"] == "invoice_a.pdf"
+    assert payload["processed_files"][0]["processed_at_utc"]
+    assert payload["processed_files"][0]["file_hash"] == hashlib.sha256(
+        b"dummy"
+    ).hexdigest()
 
 
 def test_main_uses_status_fallback_strategy_from_config(monkeypatch, tmp_path: Path) -> None:
@@ -653,6 +657,9 @@ def test_main_assess_marks_unprocessed_pdfs_as_processed(monkeypatch, tmp_path: 
     status_file = tmp_path / "data" / "state" / "processed_files.json"
     payload = json.loads(status_file.read_text(encoding="utf-8"))
     assert [entry["file_name"] for entry in payload["processed_files"]] == ["invoice_1.pdf"]
+    assert payload["processed_files"][0]["file_hash"] == hashlib.sha256(
+        b"dummy"
+    ).hexdigest()
 
 
 def test_invoke_extraction_llm_placeholder_raises_clear_runtime_error() -> None:
