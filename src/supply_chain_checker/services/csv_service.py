@@ -41,7 +41,9 @@ def build_run_csv_filename(*, command: str, run_context: RunContext) -> str:
     return f"{prefix}_{run_context.timestamp_compact}_{run_context.run_id}.xlsx"
 
 
-def _write_tabular_xlsx(*, path: Path, fieldnames: tuple[str, ...], rows: list[dict[str, object]]) -> None:
+def _write_tabular_xlsx(
+    *, path: Path, fieldnames: tuple[str, ...], rows: list[dict[str, object]]
+) -> None:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "data"
@@ -108,7 +110,9 @@ def select_latest_extraction_csv(*, output_dir: Path) -> Path:
                 "error_type": "StorageIOError",
             },
         )
-        raise StorageIOError(f"No extraction XLSX available in '{output_dir}'. Run 'extract' first.")
+        raise StorageIOError(
+            f"No extraction XLSX available in '{output_dir}'. Run 'extract' first."
+        )
 
     latest_candidate = max(candidates, key=lambda entry: (entry[0], entry[1]))[2]
     logger.info(

@@ -48,9 +48,7 @@ def test_parse_assessment_response_rejects_overlong_reason() -> None:
     with pytest.raises(ParsingError, match="at most 100 words"):
         parse_assessment_response(
             response_text=(
-                '{"risikostufe": 3, "preisänderung_prozent": 1.5, '
-                f'"begründung": "{reason}"'
-                "}"
+                '{"risikostufe": 3, "preisänderung_prozent": 1.5, ' f'"begründung": "{reason}"' "}"
             )
         )
 
@@ -93,7 +91,7 @@ def test_parse_assessment_response_supports_markdown_fenced_json_payload() -> No
     parsed = parse_assessment_response(
         response_text=(
             "```json\n"
-            '{\n'
+            "{\n"
             '  "risikostufe": "5",\n'
             '  "preisänderung_prozent": 8,\n'
             '  "begründung": "Moderates Risiko."\n'

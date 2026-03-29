@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from openpyxl import Workbook, load_workbook
 from pathlib import Path
+
+from openpyxl import Workbook, load_workbook
 
 from supply_chain_checker import cli
 from supply_chain_checker.services.llm.base import LlmClientError, LlmRequestContext
@@ -75,7 +76,11 @@ def test_extract_end_to_end_uses_mocked_ocr_and_llm(monkeypatch, tmp_path: Path)
     extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
     assert len(extraction_files) == 1
 
-    rows = list(load_workbook(extraction_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
+    rows = list(
+        load_workbook(extraction_files[0], read_only=True, data_only=True).active.iter_rows(
+            values_only=True
+        )
+    )
 
     assert len(rows) == 2
     assert rows[1][1] == "invoice_ocr.pdf"
@@ -100,8 +105,20 @@ def test_assess_end_to_end_from_extraction_csv_with_mocked_llm(monkeypatch, tmp_
     extraction_xlsx = output_dir / "extraction_20260327T120000Z_runabc123456.xlsx"
     wb = Workbook()
     ws = wb.active
-    ws.append(["run_id","document_name","product_name","quantity","supplier","manufacturer","article_number","extraction_status","extraction_hint"])
-    ws.append(["run1","invoice_1.pdf","Widget A","10","ACME","","","confirmed",""])
+    ws.append(
+        [
+            "run_id",
+            "document_name",
+            "product_name",
+            "quantity",
+            "supplier",
+            "manufacturer",
+            "article_number",
+            "extraction_status",
+            "extraction_hint",
+        ]
+    )
+    ws.append(["run1", "invoice_1.pdf", "Widget A", "10", "ACME", "", "", "confirmed", ""])
     wb.save(extraction_xlsx)
 
     def _mock_assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
@@ -128,7 +145,11 @@ def test_assess_end_to_end_from_extraction_csv_with_mocked_llm(monkeypatch, tmp_
     assessment_files = list(output_dir.glob("assessment_*.xlsx"))
     assert len(assessment_files) == 1
 
-    rows = list(load_workbook(assessment_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
+    rows = list(
+        load_workbook(assessment_files[0], read_only=True, data_only=True).active.iter_rows(
+            values_only=True
+        )
+    )
 
     assert len(rows) == 2
     assert rows[1][9] == "assessed"
@@ -202,7 +223,11 @@ def test_run_end_to_end_executes_extract_then_assess(monkeypatch, tmp_path: Path
     assert len(extraction_files) == 1
     assert len(assessment_files) == 1
 
-    rows = list(load_workbook(assessment_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
+    rows = list(
+        load_workbook(assessment_files[0], read_only=True, data_only=True).active.iter_rows(
+            values_only=True
+        )
+    )
 
     assert len(rows) == 2
     assert rows[1][2] == "Widget A"
@@ -254,7 +279,11 @@ def test_extract_continues_after_llm_failure_for_single_document(
     extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
     assert len(extraction_files) == 1
 
-    rows = list(load_workbook(extraction_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
+    rows = list(
+        load_workbook(extraction_files[0], read_only=True, data_only=True).active.iter_rows(
+            values_only=True
+        )
+    )
 
     assert len(rows) == 3
     assert rows[1][1] == "invoice_fail.pdf"

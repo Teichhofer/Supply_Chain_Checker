@@ -456,12 +456,7 @@ def _print_assessment_console_results(*, results: list[ProductAssessmentResult])
             if result.normalized_assessment is not None
             else "-"
         )
-        status_detail = (
-            result.skip_reason
-            or result.error_type
-            or result.assessment_hint
-            or "OK"
-        )
+        status_detail = result.skip_reason or result.error_type or result.assessment_hint or "OK"
         print(
             f"- Produktname: {result.product.product_name} | "
             f"Lieferant: {result.product.supplier} | "

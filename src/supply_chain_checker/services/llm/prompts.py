@@ -36,19 +36,12 @@ def build_extraction_prompt(
         sections.append(document_text)
 
     sections.append(
-        (
-            "Antwortformat (nur JSON, keine Markdown-Blöcke): "
-            '[{"product_name":"...","quantity":"...","supplier":"...",'
-            '"manufacturer":"...","article_number":"...","extraction_status":"...",'
-            '"extraction_hint":"..."}]'
-        )
+        "Antwortformat (nur JSON, keine Markdown-Blöcke): "
+        '[{"product_name":"...","quantity":"...","supplier":"...",'
+        '"manufacturer":"...","article_number":"...","extraction_status":"...",'
+        '"extraction_hint":"..."}]'
     )
-    sections.append(
-        (
-            "Setze extraction_status nur auf "
-            "'confirmed' oder 'uncertain'."
-        )
-    )
+    sections.append("Setze extraction_status nur auf " "'confirmed' oder 'uncertain'.")
 
     return "\n\n".join(section for section in sections if section)
 

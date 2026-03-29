@@ -84,7 +84,9 @@ def test_load_document_text_logs_error_message_and_traceback_on_pdf_failure(capl
             command="extract",
         )
 
-    relevant = [record for record in caplog.records if getattr(record, "event", None) == "extraction.failed"]
+    relevant = [
+        record for record in caplog.records if getattr(record, "event", None) == "extraction.failed"
+    ]
     assert len(relevant) == 1
     assert relevant[0].error_message == "Could not parse xref table"
     assert relevant[0].exc_info is not None

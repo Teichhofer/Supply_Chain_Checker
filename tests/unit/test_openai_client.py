@@ -8,6 +8,7 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
+from supply_chain_checker.logging_setup import setup_logging
 from supply_chain_checker.services.llm.base import (
     LlmAuthenticationError,
     LlmClientError,
@@ -18,7 +19,6 @@ from supply_chain_checker.services.llm.base import (
     LlmServiceError,
     LlmTimeoutError,
 )
-from supply_chain_checker.logging_setup import setup_logging
 from supply_chain_checker.services.llm.openai_client import OpenAIAdapterConfig, OpenAIClient
 
 
@@ -172,7 +172,9 @@ def test_openai_client_maps_unauthorized_http_error(
 
     assert "llm.authentication.failed api_key_suffix=1234" in caplog.text
     auth_failure_records = [
-        record for record in caplog.records if record.message.startswith("llm.authentication.failed")
+        record
+        for record in caplog.records
+        if record.message.startswith("llm.authentication.failed")
     ]
     assert auth_failure_records
     assert auth_failure_records[0].api_key_suffix == "1234"

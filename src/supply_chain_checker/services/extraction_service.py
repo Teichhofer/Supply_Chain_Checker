@@ -118,7 +118,9 @@ class ExtractionService:
             context=LlmRequestContext(run_id=run_id, command=command),
         )
         try:
-            products = self._response_parser(response_text=llm_response, document_name=pdf_path.name)
+            products = self._response_parser(
+                response_text=llm_response, document_name=pdf_path.name
+            )
         except ParsingError as exc:
             logger.warning(
                 "extraction.response.parse.failed",

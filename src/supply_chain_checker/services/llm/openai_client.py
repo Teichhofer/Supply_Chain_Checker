@@ -295,7 +295,10 @@ class OpenAIClient(LlmGateway):
         label = self._communication_label(direction)
         payload_oneline = payload.replace("\n", "\\n")
         communication_logger.info(
-            "llm.communication label=%s direction=%s event=%s command=%s operation=%s attempt=%s payload_length=%s payload=%s",
+            (
+                "llm.communication label=%s direction=%s event=%s command=%s "
+                "operation=%s attempt=%s payload_length=%s payload=%s"
+            ),
             label,
             direction,
             "llm.communication",

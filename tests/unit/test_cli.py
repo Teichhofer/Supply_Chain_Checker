@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
 import re
 import stat
 from pathlib import Path
 
 import pytest
+from openpyxl import Workbook, load_workbook
 
 from supply_chain_checker import cli
 from supply_chain_checker.models import ExtractedProduct
-from openpyxl import Workbook, load_workbook
-
 from supply_chain_checker.services.csv_service import StorageIOError
 from supply_chain_checker.services.llm.base import LlmConfigurationError
 from supply_chain_checker.services.pdf_reader import PdfProcessingError
@@ -46,28 +45,32 @@ parameters:
 """
 
 
-
 def _write_extraction_xlsx(path: Path, rows: list[list[str]]) -> None:
     workbook = Workbook()
     sheet = workbook.active
-    sheet.append([
-        "run_id",
-        "document_name",
-        "product_name",
-        "quantity",
-        "supplier",
-        "manufacturer",
-        "article_number",
-        "extraction_status",
-        "extraction_hint",
-    ])
+    sheet.append(
+        [
+            "run_id",
+            "document_name",
+            "product_name",
+            "quantity",
+            "supplier",
+            "manufacturer",
+            "article_number",
+            "extraction_status",
+            "extraction_hint",
+        ]
+    )
     for row in rows:
         sheet.append(row)
     workbook.save(path)
 
 
 def _read_xlsx_rows(path: Path) -> list[tuple[object, ...]]:
-    return list(load_workbook(path, read_only=True, data_only=True).active.iter_rows(values_only=True))
+    return list(
+        load_workbook(path, read_only=True, data_only=True).active.iter_rows(values_only=True)
+    )
+
 
 _FALLBACK_STATUS_CONFIG = """
 paths:
@@ -111,7 +114,6 @@ def test_build_parser_supports_extract_assess_and_run() -> None:
     assert extract_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
     assert assess_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
     assert run_default_args.config == str(cli.DEFAULT_CONFIG_PATH)
-
 
 
 def test_build_parser_supports_clear() -> None:
@@ -169,10 +171,7 @@ def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, ca
     assert rows[1][0] == run_id
 
 
-
-def test_main_clear_deletes_logs_output_and_state_directories(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_main_clear_deletes_logs_output_and_state_directories(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / "config.yaml"
@@ -190,9 +189,7 @@ def test_main_clear_deletes_logs_output_and_state_directories(
     state_dir.mkdir(parents=True, exist_ok=True)
     (state_dir / "processed_files.json").write_text("{}", encoding="utf-8")
 
-    monkeypatch.setattr(
-        "sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)]
-    )
+    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)])
 
     assert cli.main() == 0
     assert logs_dir.exists()
@@ -214,9 +211,7 @@ def test_main_clear_deletes_nested_state_files(monkeypatch, tmp_path: Path) -> N
     (state_nested_dir / "a.json").write_text("{}", encoding="utf-8")
     (tmp_path / "data" / "state" / ".hidden").write_text("x", encoding="utf-8")
 
-    monkeypatch.setattr(
-        "sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)]
-    )
+    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)])
 
     assert cli.main() == 0
     state_dir = tmp_path / "data" / "state"
@@ -231,9 +226,7 @@ def test_main_clear_deletes_legacy_processed_files_file(monkeypatch, tmp_path: P
     config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
     (tmp_path / "processed_files.json").write_text("{}", encoding="utf-8")
 
-    monkeypatch.setattr(
-        "sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)]
-    )
+    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)])
 
     assert cli.main() == 0
     assert not (tmp_path / "processed_files.json").exists()
@@ -328,8 +321,6 @@ def test_main_logs_run_finished_even_when_command_raises(monkeypatch, tmp_path: 
     assert "run.finished" in log_content
 
 
-
-
 def test_main_run_executes_extract_then_assess(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
 
@@ -340,9 +331,7 @@ def test_main_run_executes_extract_then_assess(monkeypatch, tmp_path: Path) -> N
     output_dir.mkdir(parents=True, exist_ok=True)
     _write_extraction_xlsx(output_dir / "extraction_20260327T100000Z_olderrun1234.xlsx", [])
 
-    monkeypatch.setattr(
-        "sys.argv", ["supply-chain-checker", "run", "--config", str(config_file)]
-    )
+    monkeypatch.setattr("sys.argv", ["supply-chain-checker", "run", "--config", str(config_file)])
     assert cli.main() == 0
 
     extract_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
@@ -351,6 +340,7 @@ def test_main_run_executes_extract_then_assess(monkeypatch, tmp_path: Path) -> N
     assert len(extract_files) >= 1
     assert len(assess_files) == 1
     assert all(extract_file.name != assess_files[0].name for extract_file in extract_files)
+
 
 def test_main_creates_distinct_xlsx_artifacts_per_command(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
@@ -436,9 +426,7 @@ def test_main_reads_and_updates_status_file(monkeypatch, tmp_path: Path) -> None
     payload = json.loads(status_file.read_text(encoding="utf-8"))
     assert payload["processed_files"][0]["file_name"] == "invoice_a.pdf"
     assert payload["processed_files"][0]["processed_at_utc"]
-    assert payload["processed_files"][0]["file_hash"] == hashlib.sha256(
-        b"dummy"
-    ).hexdigest()
+    assert payload["processed_files"][0]["file_hash"] == hashlib.sha256(b"dummy").hexdigest()
 
 
 def test_main_uses_status_fallback_strategy_from_config(monkeypatch, tmp_path: Path) -> None:
@@ -657,9 +645,7 @@ def test_main_assess_marks_unprocessed_pdfs_as_processed(monkeypatch, tmp_path: 
     status_file = tmp_path / "data" / "state" / "processed_files.json"
     payload = json.loads(status_file.read_text(encoding="utf-8"))
     assert [entry["file_name"] for entry in payload["processed_files"]] == ["invoice_1.pdf"]
-    assert payload["processed_files"][0]["file_hash"] == hashlib.sha256(
-        b"dummy"
-    ).hexdigest()
+    assert payload["processed_files"][0]["file_hash"] == hashlib.sha256(b"dummy").hexdigest()
 
 
 def test_invoke_extraction_llm_placeholder_raises_clear_runtime_error() -> None:

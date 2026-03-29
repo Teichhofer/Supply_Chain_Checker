@@ -121,9 +121,7 @@ def _optional_text(value: Any) -> str | None:
 
 def _is_non_product_position(product_name: str) -> bool:
     normalized_name = product_name.strip().lower()
-    return any(
-        normalized_name.startswith(prefix) for prefix in _NON_PRODUCT_POSITION_PREFIXES
-    )
+    return any(normalized_name.startswith(prefix) for prefix in _NON_PRODUCT_POSITION_PREFIXES)
 
 
 def _log_parsing_failure(*, message: str, document_name: str) -> None:
