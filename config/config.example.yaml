@@ -40,8 +40,14 @@ prompts:
     Bewerte das Lieferkettenrisiko für das Produkt "{product_name}" für den Fall einer schweren Eskalation des China-Taiwan-Konflikts zu einem militärischen Konflikt unter Einbeziehung der USA.
     Berücksichtige entlang der gesamten Lieferkette: Komponenten, Halbzeuge, Vorprodukte, Rohstoffe, Logistik, Energie und kritische Zulieferabhängigkeiten.
     Gehe von einem Stressszenario aus (Sanktionen/Exportkontrollen, gestörte See- und Luftfracht, Engpässe bei Vorprodukten) und nicht von einem milden Basisszenario.
-    Gib preisänderung_prozent als plausible mittlere Beschaffungspreisänderung in den ersten 12 Monaten gegenüber dem Vorkrisenniveau an.
-    Falls die Bandbreite groß ist, wähle einen realistischen Mittelpunkt der erwarteten Spannweite.
+    Gib preisänderung_prozent als plausible mittlere Beschaffungspreisänderung in den ersten 12 Monaten gegenüber dem Vorkrisenniveau an (in Prozentpunkten, also 35 statt 0.35).
+    Kalibriere die Zahl auf ein Kriegsszenario und bewerte explizit Erst- und Zweitrundeneffekte (Inputkosten, Energie, Logistik, Versicherungen, Umroutung, Requalifizierung).
+    Nutze diese Orientierung als Plausibilitätsanker und begründe Abweichungen kurz:
+    - lokal/regional und gut substituierbar: häufig ca. 10-25 %
+    - global gehandelte Standardgüter mit Energie-/Logistikhebel: häufig ca. 20-45 %
+    - elektronik- oder asienabhängige Güter mit hoher Konzentration: häufig ca. 35-80 %
+    - bei schwer substituierbaren Engpasskomponenten sind temporär >80 % möglich
+    Falls die Bandbreite groß ist, wähle einen realistischen Mittelpunkt der erwarteten Spannweite und vermeide konservatives "Mittelwert-Bias" in diesem Stressszenario.
     Antworte als JSON mit risikostufe, preisänderung_prozent und begründung.
 
 parameters:
