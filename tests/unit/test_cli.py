@@ -79,6 +79,15 @@ def test_build_parser_supports_extract_assess_and_run() -> None:
     assert run_args.command == "run"
 
 
+
+def test_build_parser_supports_clear() -> None:
+    parser = cli._build_parser()
+
+    clear_args = parser.parse_args(["clear", "--config", "config/config.yaml"])
+
+    assert clear_args.command == "clear"
+
+
 def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.chdir(tmp_path)
 
@@ -110,6 +119,37 @@ def test_main_ensures_layout_and_returns_success(monkeypatch, tmp_path: Path, ca
     artifact_content = output_files[0].read_text(encoding="utf-8")
     assert "run_id" in artifact_content
     assert run_id in artifact_content
+
+
+
+def test_main_clear_deletes_logs_output_and_state_directories(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    (logs_dir / "app.log").write_text("log", encoding="utf-8")
+
+    output_dir = tmp_path / "data" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "artifact.csv").write_text("csv", encoding="utf-8")
+
+    state_dir = tmp_path / "data" / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "processed_files.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+    assert not logs_dir.exists()
+    assert not output_dir.exists()
+    assert not state_dir.exists()
 
 
 def test_main_loads_openai_key_from_sibling_secrets_env(monkeypatch, tmp_path: Path) -> None:

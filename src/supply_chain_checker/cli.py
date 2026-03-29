@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shutil
 from pathlib import Path
 
 from supply_chain_checker.config import AppConfig, load_config
@@ -118,6 +119,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--config", required=True, help="Path to YAML config file")
 
+    clear = subparsers.add_parser(
+        "clear",
+        help="Delete logs, output, and state directories",
+    )
+    clear.add_argument("--config", required=True, help="Path to YAML config file")
+
     return parser
 
 
@@ -131,6 +138,11 @@ def main() -> int:
 
     _load_secrets_env(args.config)
     config = load_config(args.config)
+
+    if args.command == "clear":
+        _run_clear_command(config=config)
+        return 0
+
     run_context = create_run_context()
     log_file_path = setup_logging(
         logs_dir=config.paths.logs_dir,
@@ -222,6 +234,17 @@ def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
             ),
         ),
     )
+
+
+def _run_clear_command(*, config: AppConfig) -> None:
+    directories_to_clear = [
+        config.paths.logs_dir,
+        config.paths.output_dir,
+        config.paths.state_dir,
+    ]
+    for directory in directories_to_clear:
+        if directory.exists():
+            shutil.rmtree(directory)
 
 
 def _run_extract_command(
