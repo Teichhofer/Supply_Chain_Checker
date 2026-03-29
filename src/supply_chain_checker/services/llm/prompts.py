@@ -43,6 +43,12 @@ def build_extraction_prompt(
             '"extraction_hint":"..."}]'
         )
     )
+    sections.append(
+        (
+            "Setze extraction_status nur auf "
+            "'confirmed' oder 'uncertain'."
+        )
+    )
 
     return "\n\n".join(section for section in sections if section)
 

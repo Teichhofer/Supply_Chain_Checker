@@ -114,6 +114,20 @@ def test_parser_accepts_explicit_confirmed_and_uncertain_status_values() -> None
     assert products[1].extraction_status == "uncertain"
 
 
+def test_parser_accepts_legacy_status_aliases_from_llm_output() -> None:
+    response = (
+        '{"products": ['
+        '{"product_name":"A","quantity":"1","supplier":"S","extraction_status":"extracted"},'
+        '{"product_name":"B","quantity":"2","supplier":"S","extraction_status":"unclear"}'
+        "]}"
+    )
+
+    products = parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+    assert products[0].extraction_status == "confirmed"
+    assert products[1].extraction_status == "uncertain"
+
+
 def test_parser_raises_for_non_text_like_field_values() -> None:
     response = '{"products": [{"product_name": [], "quantity": "1", "supplier": "S"}]}'
 
