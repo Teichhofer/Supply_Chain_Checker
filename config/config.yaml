@@ -22,6 +22,8 @@ llm:
   # V1 unterstützt OpenAI als Provider
   provider: openai
   model: gpt-4.1-mini
+  extraction_model: gpt-5.4-nano
+  assessment_model: gpt-5.4
   timeout_seconds: 30
   max_retries: 2
   temperature: 0.0

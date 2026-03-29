@@ -251,7 +251,7 @@ def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
         ),
         llm_client=OpenAIClient(
             config=OpenAIAdapterConfig(
-                model=config.llm.model,
+                model=config.llm.extraction_model,
                 timeout_seconds=config.llm.timeout_seconds,
                 max_retries=config.llm.max_retries,
                 temperature=config.llm.temperature,
@@ -492,7 +492,7 @@ def _build_assessment_service(*, config: AppConfig, max_reason_words: int) -> As
     return AssessmentService(
         llm_client=OpenAIClient(
             config=OpenAIAdapterConfig(
-                model=config.llm.model,
+                model=config.llm.assessment_model,
                 timeout_seconds=config.llm.timeout_seconds,
                 max_retries=config.llm.max_retries,
                 temperature=config.llm.temperature,
