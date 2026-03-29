@@ -47,7 +47,9 @@ def parse_assessment_response(
     try:
         raw_assessment = _extract_assessment_payload(payload)
         risk_level = _parse_risk_level(raw_assessment.get("risikostufe"))
-        price_change_percent = _parse_price_change_percent(raw_assessment.get("preisänderung_prozent"))
+        price_change_percent = _parse_price_change_percent(
+            raw_assessment.get("preisänderung_prozent")
+        )
         reason = _parse_reason(raw_assessment.get("begründung"), max_reason_words=max_reason_words)
     except ParsingError as exc:
         _log_parsing_failure(message=str(exc))
@@ -95,16 +97,16 @@ def _normalize_json_payload_text(response_text: str) -> str:
     return normalized[json_start : json_end + 1]
 
 
-def _extract_assessment_payload(payload: Any) -> dict[str, Any]:
+def _extract_assessment_payload(payload: Any) -> dict[str, object]:
     if isinstance(payload, dict):
         if isinstance(payload.get("bewertung"), dict):
-            return cast(dict[str, Any], payload["bewertung"])
-        return payload
+            return cast(dict[str, object], payload["bewertung"])
+        return cast(dict[str, object], payload)
 
     raise ParsingError("LLM assessment response must be an object.")
 
 
-def _parse_risk_level(value: Any) -> int:
+def _parse_risk_level(value: object) -> int:
     if value is None:
         raise ParsingError("Field 'risikostufe' is required.")
 
@@ -146,7 +148,7 @@ def _parse_risk_level(value: Any) -> int:
     return parsed
 
 
-def _parse_price_change_percent(value: Any) -> float:
+def _parse_price_change_percent(value: object) -> float:
     if value is None:
         raise ParsingError("Field 'preisänderung_prozent' is required.")
 
@@ -185,7 +187,7 @@ def _parse_price_change_percent(value: Any) -> float:
     raise ParsingError("Field 'preisänderung_prozent' must be numeric.")
 
 
-def _parse_reason(value: Any, *, max_reason_words: int) -> str:
+def _parse_reason(value: object, *, max_reason_words: int) -> str:
     if not isinstance(value, str):
         raise ParsingError("Field 'begründung' must be a non-empty string.")
 
