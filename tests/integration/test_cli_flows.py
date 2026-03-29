@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import csv
 import json
+from openpyxl import Workbook, load_workbook
 from pathlib import Path
 
 from supply_chain_checker import cli
@@ -72,16 +72,15 @@ def test_extract_end_to_end_uses_mocked_ocr_and_llm(monkeypatch, tmp_path: Path)
 
     assert cli.main() == 0
 
-    extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
     assert len(extraction_files) == 1
 
-    with extraction_files[0].open("r", encoding="utf-8", newline="") as csv_file:
-        rows = list(csv.DictReader(csv_file))
+    rows = list(load_workbook(extraction_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
 
-    assert len(rows) == 1
-    assert rows[0]["document_name"] == "invoice_ocr.pdf"
-    assert rows[0]["product_name"] == "Widget A"
-    assert rows[0]["extraction_status"] == "confirmed"
+    assert len(rows) == 2
+    assert rows[1][1] == "invoice_ocr.pdf"
+    assert rows[1][2] == "Widget A"
+    assert rows[1][7] == "confirmed"
 
     log_content = (tmp_path / "logs" / "app.log").read_text(encoding="utf-8")
     assert "run.started" in log_content
@@ -98,16 +97,12 @@ def test_assess_end_to_end_from_extraction_csv_with_mocked_llm(monkeypatch, tmp_
 
     output_dir = tmp_path / "data" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    extraction_csv = output_dir / "extraction_20260327T120000Z_runabc123456.csv"
-    extraction_csv.write_text(
-        "\n".join(
-            [
-                "run_id,document_name,product_name,quantity,supplier,manufacturer,article_number,extraction_status,extraction_hint",
-                "run1,invoice_1.pdf,Widget A,10,ACME,,,confirmed,",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    extraction_xlsx = output_dir / "extraction_20260327T120000Z_runabc123456.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["run_id","document_name","product_name","quantity","supplier","manufacturer","article_number","extraction_status","extraction_hint"])
+    ws.append(["run1","invoice_1.pdf","Widget A","10","ACME","","","confirmed",""])
+    wb.save(extraction_xlsx)
 
     def _mock_assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
         assert "Widget A" in prompt
@@ -130,16 +125,15 @@ def test_assess_end_to_end_from_extraction_csv_with_mocked_llm(monkeypatch, tmp_
 
     assert cli.main() == 0
 
-    assessment_files = list(output_dir.glob("assessment_*.csv"))
+    assessment_files = list(output_dir.glob("assessment_*.xlsx"))
     assert len(assessment_files) == 1
 
-    with assessment_files[0].open("r", encoding="utf-8", newline="") as csv_file:
-        rows = list(csv.DictReader(csv_file))
+    rows = list(load_workbook(assessment_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
 
-    assert len(rows) == 1
-    assert rows[0]["bewertungsstatus"] == "assessed"
-    assert rows[0]["risikostufe"] == "2"
-    assert rows[0]["preisänderung_prozent"] == "1.5"
+    assert len(rows) == 2
+    assert rows[1][9] == "assessed"
+    assert rows[1][11] == 2
+    assert rows[1][12] == 1.5
 
     status_payload = json.loads(
         (tmp_path / "data" / "state" / "processed_files.json").read_text(encoding="utf-8")
@@ -203,18 +197,17 @@ def test_run_end_to_end_executes_extract_then_assess(monkeypatch, tmp_path: Path
     assert cli.main() == 0
 
     output_dir = tmp_path / "data" / "output"
-    extraction_files = list(output_dir.glob("extraction_*.csv"))
-    assessment_files = list(output_dir.glob("assessment_*.csv"))
+    extraction_files = list(output_dir.glob("extraction_*.xlsx"))
+    assessment_files = list(output_dir.glob("assessment_*.xlsx"))
     assert len(extraction_files) == 1
     assert len(assessment_files) == 1
 
-    with assessment_files[0].open("r", encoding="utf-8", newline="") as csv_file:
-        rows = list(csv.DictReader(csv_file))
+    rows = list(load_workbook(assessment_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
 
-    assert len(rows) == 1
-    assert rows[0]["product_name"] == "Widget A"
-    assert rows[0]["bewertungsstatus"] == "assessed"
-    assert rows[0]["risikostufe"] == "3"
+    assert len(rows) == 2
+    assert rows[1][2] == "Widget A"
+    assert rows[1][9] == "assessed"
+    assert rows[1][11] == 3
 
     log_content = (tmp_path / "logs" / "app.log").read_text(encoding="utf-8")
     assert "command.received" in log_content
@@ -258,15 +251,13 @@ def test_extract_continues_after_llm_failure_for_single_document(
 
     assert cli.main() == 0
 
-    extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.csv"))
+    extraction_files = list((tmp_path / "data" / "output").glob("extraction_*.xlsx"))
     assert len(extraction_files) == 1
 
-    with extraction_files[0].open("r", encoding="utf-8", newline="") as csv_file:
-        rows = list(csv.DictReader(csv_file))
+    rows = list(load_workbook(extraction_files[0], read_only=True, data_only=True).active.iter_rows(values_only=True))
 
-    assert len(rows) == 2
-    failed_row = next(row for row in rows if row["document_name"] == "invoice_fail.pdf")
-    success_row = next(row for row in rows if row["document_name"] == "invoice_ok.pdf")
-    assert failed_row["extraction_status"] == "uncertain"
-    assert failed_row["extraction_hint"] == "Document processing failed: LlmClientError"
-    assert success_row["product_name"] == "Widget A"
+    assert len(rows) == 3
+    assert rows[1][1] == "invoice_fail.pdf"
+    assert rows[1][7] == "uncertain"
+    assert rows[1][8] == "Document processing failed: LlmClientError"
+    assert rows[2][2] == "Widget A"
