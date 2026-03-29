@@ -22,6 +22,14 @@ _NON_PRODUCT_POSITION_PREFIXES = ("versand",)
 def parse_extraction_response(*, response_text: str, document_name: str) -> list[ExtractedProduct]:
     """Parse LLM JSON response into normalized extracted product records."""
 
+    logger.debug(
+        "extraction.parsing.started",
+        extra={
+            "event": "extraction.parsing.started",
+            "document_name": document_name,
+        },
+    )
+
     try:
         payload = json.loads(response_text)
     except json.JSONDecodeError as exc:
@@ -46,8 +54,25 @@ def parse_extraction_response(*, response_text: str, document_name: str) -> list
             _log_parsing_failure(message=str(exc), document_name=document_name)
             raise
         if _is_non_product_position(parsed_product.product_name):
+            logger.info(
+                "extraction.parsing.product.skipped",
+                extra={
+                    "event": "extraction.parsing.product.skipped",
+                    "document_name": document_name,
+                    "product_name": parsed_product.product_name,
+                },
+            )
             continue
         parsed_products.append(parsed_product)
+
+    logger.info(
+        "extraction.parsing.succeeded",
+        extra={
+            "event": "extraction.parsing.succeeded",
+            "document_name": document_name,
+            "parsed_product_count": len(parsed_products),
+        },
+    )
 
     return parsed_products
 
