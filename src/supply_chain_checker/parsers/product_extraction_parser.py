@@ -16,6 +16,7 @@ class ParsingError(Exception):
 
 
 _REQUIRED_FIELDS = ("product_name", "quantity", "supplier")
+_NON_PRODUCT_POSITION_PREFIXES = ("versand",)
 
 
 def parse_extraction_response(*, response_text: str, document_name: str) -> list[ExtractedProduct]:
@@ -40,12 +41,13 @@ def parse_extraction_response(*, response_text: str, document_name: str) -> list
             )
             raise ParsingError(f"Product entry at index {index} must be an object.")
         try:
-            parsed_products.append(
-                _parse_product(raw_product=raw_product, document_name=document_name)
-            )
+            parsed_product = _parse_product(raw_product=raw_product, document_name=document_name)
         except ParsingError as exc:
             _log_parsing_failure(message=str(exc), document_name=document_name)
             raise
+        if _is_non_product_position(parsed_product.product_name):
+            continue
+        parsed_products.append(parsed_product)
 
     return parsed_products
 
@@ -115,6 +117,13 @@ def _normalized_text(value: Any) -> str | None:
 
 def _optional_text(value: Any) -> str | None:
     return _normalized_text(value)
+
+
+def _is_non_product_position(product_name: str) -> bool:
+    normalized_name = product_name.strip().lower()
+    return any(
+        normalized_name.startswith(prefix) for prefix in _NON_PRODUCT_POSITION_PREFIXES
+    )
 
 
 def _log_parsing_failure(*, message: str, document_name: str) -> None:
