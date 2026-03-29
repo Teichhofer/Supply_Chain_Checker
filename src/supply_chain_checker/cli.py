@@ -41,6 +41,7 @@ from supply_chain_checker.services.status_service import StatusService
 
 logger = logging.getLogger(__name__)
 DEFAULT_CONFIG_PATH = Path("config/config.yaml")
+STATUS_FILE_NAME = "processed_files.json"
 
 
 def _load_secrets_env(config_path: str | Path) -> None:
@@ -255,6 +256,14 @@ def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
 
 
 def _run_clear_command(*, config: AppConfig) -> None:
+    status_files_to_clear = [
+        config.paths.state_dir / STATUS_FILE_NAME,
+        Path(STATUS_FILE_NAME),
+    ]
+    for status_file in status_files_to_clear:
+        if status_file.exists() and status_file.is_file():
+            status_file.unlink()
+
     directories_to_clear = [
         config.paths.logs_dir,
         config.paths.output_dir,

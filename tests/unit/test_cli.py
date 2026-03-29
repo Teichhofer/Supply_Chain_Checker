@@ -197,6 +197,21 @@ def test_main_clear_deletes_nested_state_files(monkeypatch, tmp_path: Path) -> N
     assert list(state_dir.iterdir()) == []
 
 
+def test_main_clear_deletes_legacy_processed_files_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+    (tmp_path / "processed_files.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+    assert not (tmp_path / "processed_files.json").exists()
+
+
 def test_handle_remove_readonly_does_not_recurse_to_rmtree(monkeypatch, tmp_path: Path) -> None:
     nested_dir = tmp_path / "state"
     nested_dir.mkdir(parents=True, exist_ok=True)
