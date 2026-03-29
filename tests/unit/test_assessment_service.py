@@ -6,7 +6,11 @@ import pytest
 
 from supply_chain_checker.models import ExtractedProduct
 from supply_chain_checker.services.assessment_service import AssessmentService
-from supply_chain_checker.services.llm.base import LlmClientError, LlmRequestContext
+from supply_chain_checker.services.llm.base import (
+    LlmClientError,
+    LlmConfigurationError,
+    LlmRequestContext,
+)
 
 
 class RecordingAssessmentClient:
@@ -182,3 +186,27 @@ def test_assess_products_skips_when_product_or_supplier_is_missing(
     assert len(results) == 1
     assert results[0].assessment_status == "skipped"
     assert results[0].skip_reason == expected_reason
+
+
+def test_assess_products_raises_configuration_errors_immediately() -> None:
+    product = ExtractedProduct(
+        document_name="a.pdf",
+        product_name="Bolt",
+        quantity="10",
+        supplier="ACME",
+        extraction_status="confirmed",
+    )
+
+    class MisconfiguredClient:
+        def assess_product(self, *, prompt: str, context: LlmRequestContext) -> str:
+            del prompt, context
+            raise LlmConfigurationError("OPENAI_API_KEY is required")
+
+    service = AssessmentService(llm_client=MisconfiguredClient())
+
+    with pytest.raises(LlmConfigurationError, match="OPENAI_API_KEY"):
+        service.assess_products(
+            products=[product],
+            assessment_prompt_template="Assess {product_name}",
+            run_id="run101",
+        )

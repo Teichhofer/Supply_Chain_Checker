@@ -27,6 +27,7 @@ from supply_chain_checker.services.extraction_service import (
     LlmClientError,
     ParsingError,
 )
+from supply_chain_checker.services.llm.base import LlmConfigurationError
 from supply_chain_checker.services.llm.openai_client import OpenAIAdapterConfig, OpenAIClient
 from supply_chain_checker.services.ocr_service import OcrProcessingError, OcrService
 from supply_chain_checker.services.pdf_reader import (
@@ -266,6 +267,20 @@ def _run_extract_command(
                 },
             )
             status_service.mark_processed_and_persist(pdf_path.name)
+        except LlmConfigurationError as exc:
+            logger.error(
+                "extraction.command.failed",
+                extra={
+                    "event": "extraction.command.failed",
+                    "command": "extract",
+                    "run_id": run_id,
+                    "document_path": str(pdf_path),
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                },
+                exc_info=exc,
+            )
+            raise
         except (PdfProcessingError, OcrProcessingError, LlmClientError, ParsingError) as exc:
             logger.warning(
                 "extraction.document.failed",
