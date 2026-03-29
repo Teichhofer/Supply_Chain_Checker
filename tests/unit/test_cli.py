@@ -167,9 +167,33 @@ def test_main_clear_deletes_logs_output_and_state_directories(
     )
 
     assert cli.main() == 0
-    assert not logs_dir.exists()
-    assert not output_dir.exists()
-    assert not state_dir.exists()
+    assert logs_dir.exists()
+    assert output_dir.exists()
+    assert state_dir.exists()
+    assert list(logs_dir.iterdir()) == []
+    assert list(output_dir.iterdir()) == []
+    assert list(state_dir.iterdir()) == []
+
+
+def test_main_clear_deletes_nested_state_files(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(_MINIMAL_CONFIG, encoding="utf-8")
+
+    state_nested_dir = tmp_path / "data" / "state" / "nested"
+    state_nested_dir.mkdir(parents=True, exist_ok=True)
+    (state_nested_dir / "a.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "data" / "state" / ".hidden").write_text("x", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv", ["supply-chain-checker", "clear", "--config", str(config_file)]
+    )
+
+    assert cli.main() == 0
+    state_dir = tmp_path / "data" / "state"
+    assert state_dir.exists()
+    assert list(state_dir.iterdir()) == []
 
 
 def test_main_loads_openai_key_from_sibling_secrets_env(monkeypatch, tmp_path: Path) -> None:

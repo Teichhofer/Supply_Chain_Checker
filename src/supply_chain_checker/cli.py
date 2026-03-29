@@ -6,6 +6,7 @@ import argparse
 import logging
 import os
 import shutil
+import stat
 from pathlib import Path
 
 from supply_chain_checker.config import AppConfig, load_config
@@ -261,7 +262,24 @@ def _run_clear_command(*, config: AppConfig) -> None:
     ]
     for directory in directories_to_clear:
         if directory.exists():
-            shutil.rmtree(directory)
+            shutil.rmtree(directory, onerror=_handle_remove_readonly)
+        directory.mkdir(parents=True, exist_ok=True)
+
+
+def _handle_remove_readonly(function: object, path: str, _: BaseException) -> None:
+    path_obj = Path(path)
+    try:
+        path_obj.chmod(stat.S_IWRITE)
+    except OSError:
+        return
+
+    try:
+        if path_obj.is_dir():
+            shutil.rmtree(path_obj, onerror=_handle_remove_readonly)
+        else:
+            path_obj.unlink(missing_ok=True)
+    except OSError:
+        return
 
 
 def _run_extract_command(
