@@ -133,3 +133,17 @@ def test_parser_raises_for_non_text_like_field_values() -> None:
 
     with pytest.raises(ParsingError, match="Expected text-like value"):
         parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+
+def test_parser_excludes_versand_positions_from_extracted_products() -> None:
+    response = (
+        '{"products": ['
+        '{"product_name":"Versandkosten", "quantity":"1", "supplier":"ACME"},'
+        '{"product_name":"Copper Wire", "quantity":"20m", "supplier":"ACME"}'
+        "]}"
+    )
+
+    products = parse_extraction_response(response_text=response, document_name="doc.pdf")
+
+    assert len(products) == 1
+    assert products[0].product_name == "Copper Wire"
