@@ -24,7 +24,8 @@ llm:
   model: gpt-4.1-mini
   timeout_seconds: 30
   max_retries: 2
-  temperature: 0.0
+  extraction_temperature: 0.0
+  assessment_temperature: 0.1
 parameters:
   use_ocr_fallback: true
   max_products_per_document: 100

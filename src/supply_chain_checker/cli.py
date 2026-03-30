@@ -254,7 +254,7 @@ def _build_extraction_service(*, config: AppConfig) -> ExtractionService:
                 model=config.llm.extraction_model,
                 timeout_seconds=config.llm.timeout_seconds,
                 max_retries=config.llm.max_retries,
-                temperature=config.llm.temperature,
+                temperature=config.llm.extraction_temperature,
             ),
         ),
     )
@@ -495,7 +495,7 @@ def _build_assessment_service(*, config: AppConfig, max_reason_words: int) -> As
                 model=config.llm.assessment_model,
                 timeout_seconds=config.llm.timeout_seconds,
                 max_retries=config.llm.max_retries,
-                temperature=config.llm.temperature,
+                temperature=config.llm.assessment_temperature,
             ),
         ),
         max_reason_words=max_reason_words,
