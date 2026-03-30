@@ -27,7 +27,8 @@ llm:
   assessment_model: gpt-5.4
   timeout_seconds: 30
   max_retries: 2
-  temperature: 0.0
+  extraction_temperature: 0.0
+  assessment_temperature: 0.1
 
 prompts:
   extraction: |
