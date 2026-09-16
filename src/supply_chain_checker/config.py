@@ -19,7 +19,14 @@ _SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
     "__root__": {"paths", "logging", "llm", "prompts", "parameters"},
     "paths": {"input_dir", "output_dir", "state_dir", "logs_dir"},
     "logging": {"level", "file_name"},
-    "llm": {"provider", "model", "timeout_seconds", "max_retries", "temperature"},
+    "llm": {
+        "provider",
+        "model",
+        "timeout_seconds",
+        "max_retries",
+        "extraction_temperature",
+        "assessment_temperature",
+    },
     "prompts": {"extraction", "assessment"},
     "parameters": {
         "use_ocr_fallback",
@@ -71,7 +78,8 @@ class LlmConfig:
     assessment_model: str
     timeout_seconds: int
     max_retries: int
-    temperature: float
+    extraction_temperature: float
+    assessment_temperature: float
 
 
 @dataclass(frozen=True)
@@ -154,9 +162,15 @@ def load_config(config_path: str | Path) -> AppConfig:
 
     timeout_seconds = _int(llm_section["timeout_seconds"], "llm.timeout_seconds", minimum=1)
     max_retries = _int(llm_section["max_retries"], "llm.max_retries", minimum=0)
-    temperature = _float(
-        llm_section["temperature"],
-        "llm.temperature",
+    extraction_temperature = _float(
+        llm_section["extraction_temperature"],
+        "llm.extraction_temperature",
+        minimum=0.0,
+        maximum=2.0,
+    )
+    assessment_temperature = _float(
+        llm_section["assessment_temperature"],
+        "llm.assessment_temperature",
         minimum=0.0,
         maximum=2.0,
     )
@@ -208,7 +222,8 @@ def load_config(config_path: str | Path) -> AppConfig:
             assessment_model=assessment_model,
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
-            temperature=temperature,
+            extraction_temperature=extraction_temperature,
+            assessment_temperature=assessment_temperature,
         ),
         prompts=PromptsConfig(extraction=extraction_prompt, assessment=assessment_prompt),
         parameters=ParametersConfig(

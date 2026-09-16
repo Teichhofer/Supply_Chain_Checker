@@ -33,7 +33,8 @@ llm:
   model: gpt-4.1-mini
   timeout_seconds: 30
   max_retries: 2
-  temperature: 0.0
+  extraction_temperature: 0.0
+  assessment_temperature: 0.1
 prompts:
   extraction: "Extract from {document_name}: {document_text}"
   assessment: "Assess {product_name} from {supplier}"
@@ -86,7 +87,8 @@ llm:
   model: gpt-4.1-mini
   timeout_seconds: 30
   max_retries: 2
-  temperature: 0.0
+  extraction_temperature: 0.0
+  assessment_temperature: 0.1
 prompts:
   extraction: "Extract from {document_name}: {document_text}"
   assessment: "Assess {product_name} from {supplier}"

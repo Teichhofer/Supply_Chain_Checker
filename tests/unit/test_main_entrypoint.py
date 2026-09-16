@@ -23,7 +23,8 @@ def test_module_main_executes(monkeypatch, capsys, tmp_path) -> None:
         "  model: gpt-4.1-mini\n"
         "  timeout_seconds: 30\n"
         "  max_retries: 2\n"
-        "  temperature: 0.0\n"
+        "  extraction_temperature: 0.0\n"
+        "  assessment_temperature: 0.1\n"
         "prompts:\n"
         '  extraction: "Extract from {document_name}: {document_text}"\n'
         '  assessment: "Assess {product_name}"\n'

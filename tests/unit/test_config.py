@@ -24,7 +24,8 @@ def _base_config() -> dict[str, object]:
             "model": "gpt-4.1-mini",
             "timeout_seconds": 30,
             "max_retries": 2,
-            "temperature": 0.0,
+            "extraction_temperature": 0.0,
+            "assessment_temperature": 0.1,
         },
         "prompts": {
             "extraction": "Extract products as JSON",
@@ -59,7 +60,8 @@ def test_load_config_reads_full_settings(tmp_path) -> None:
         "model": "gpt-4.1-mini",
         "timeout_seconds": 15,
         "max_retries": 3,
-        "temperature": 0.4,
+        "extraction_temperature": 0.2,
+        "assessment_temperature": 0.4,
     }
     payload["prompts"] = {
         "extraction": "Extract products as JSON",
@@ -85,7 +87,8 @@ def test_load_config_reads_full_settings(tmp_path) -> None:
     assert config.llm.model == "gpt-4.1-mini"
     assert config.llm.timeout_seconds == 15
     assert config.llm.max_retries == 3
-    assert config.llm.temperature == 0.4
+    assert config.llm.extraction_temperature == 0.2
+    assert config.llm.assessment_temperature == 0.4
     assert config.prompts.extraction == "Extract products as JSON"
     assert config.prompts.assessment == "Assess risk for {product_name}"
     assert config.parameters.use_ocr_fallback is False
@@ -149,10 +152,10 @@ def test_load_config_rejects_non_mapping_sections(tmp_path) -> None:
 
 def test_load_config_rejects_invalid_numeric_ranges(tmp_path) -> None:
     payload = _base_config()
-    payload["llm"]["temperature"] = 4  # type: ignore[index]
+    payload["llm"]["assessment_temperature"] = 4  # type: ignore[index]
     config_file = _write_config(tmp_path, payload)
 
-    with pytest.raises(ConfigurationError, match="llm.temperature"):
+    with pytest.raises(ConfigurationError, match="llm.assessment_temperature"):
         load_config(config_file)
 
 
@@ -207,12 +210,12 @@ def test_load_config_rejects_integer_below_minimum(tmp_path) -> None:
         load_config(config_file)
 
 
-def test_load_config_rejects_non_numeric_temperature(tmp_path) -> None:
+def test_load_config_rejects_non_numeric_extraction_temperature(tmp_path) -> None:
     payload = _base_config()
-    payload["llm"]["temperature"] = False  # type: ignore[index]
+    payload["llm"]["extraction_temperature"] = False  # type: ignore[index]
     config_file = _write_config(tmp_path, payload)
 
-    with pytest.raises(ConfigurationError, match="llm.temperature"):
+    with pytest.raises(ConfigurationError, match="llm.extraction_temperature"):
         load_config(config_file)
 
 
@@ -226,24 +229,26 @@ def test_load_config_rejects_unknown_status_corruption_strategy(tmp_path) -> Non
 
 
 @pytest.mark.parametrize("temperature", ["nan", "inf", "-inf"])
-def test_load_config_rejects_non_finite_temperature(tmp_path, temperature: str) -> None:
+def test_load_config_rejects_non_finite_assessment_temperature(
+    tmp_path, temperature: str
+) -> None:
     payload = _base_config()
-    payload["llm"]["temperature"] = temperature  # type: ignore[index]
+    payload["llm"]["assessment_temperature"] = temperature  # type: ignore[index]
     config_file = _write_config(tmp_path, payload)
 
-    with pytest.raises(ConfigurationError, match="llm.temperature"):
+    with pytest.raises(ConfigurationError, match="llm.assessment_temperature"):
         load_config(config_file)
 
 
 @pytest.mark.parametrize("temperature", [".nan", ".inf", "-.inf"])
-def test_load_config_rejects_yaml_non_finite_temperature_literals(
+def test_load_config_rejects_yaml_non_finite_extraction_temperature_literals(
     tmp_path, temperature: str
 ) -> None:
     payload = _base_config()
-    payload["llm"]["temperature"] = temperature  # type: ignore[index]
+    payload["llm"]["extraction_temperature"] = temperature  # type: ignore[index]
     config_file = _write_config(tmp_path, payload)
 
-    with pytest.raises(ConfigurationError, match="llm.temperature"):
+    with pytest.raises(ConfigurationError, match="llm.extraction_temperature"):
         load_config(config_file)
 
 
